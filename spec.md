@@ -1,6 +1,6 @@
 # Shortform Video Generation Harness — System Spec
 
-> version: 0.3.0  
+> version: 0.4.0  
 > status: draft  
 > date: 2026-05-08
 
@@ -34,6 +34,7 @@
 - 프롬프트는 코드에 박지 않는다 — 독립 파일로 분리, eval 가능
 - Property를 1급 아티팩트로 관리 — 코드 변경 없이 확장
 - 씬 단위 실패 복구 — scene 3 실패 시 scene 3만 재생성
+- **Orchestrator가 파이프라인을 에이전틱하게 운영** — 실행 계획 결정, 레지스트리 참조, 상태 저장/재개
 
 ---
 
@@ -79,14 +80,20 @@
 
 ### 1-2. 시스템 레이어 구조
 
-파이프라인 위에 3개 레이어가 얹힌다.
+파이프라인 위에 4개 레이어가 얹힌다.
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Layer 3: APO (Automatic Prompt Optimization)              │
+│  Layer 4: APO (Automatic Prompt Optimization)              │
 │  출력 점수 → 후보 템플릿 생성 → eval → 승격                 │
 └───────────────────────┬────────────────────────────────────┘
                         │ 피드백 루프
+┌───────────────────────▼────────────────────────────────────┐
+│  Layer 3: Orchestrator Agent                               │
+│  실행 계획 결정 / Prompt Registry 참조 / Run State 관리     │
+│  스테이지 도구 호출 / 병렬 실행 / 재시도 / Override 감지    │
+└───────────────────────┬────────────────────────────────────┘
+                        │
 ┌───────────────────────▼────────────────────────────────────┐
 │  Layer 2: Template Staging System                          │
 │  harness.yaml — 스테이지별 활성 템플릿 버전 결정            │
@@ -131,7 +138,237 @@
 
 ---
 
-## 2. 핵심 중간 표현 — Scene Grammar
+## 2. Orchestrator Agent
+
+6단계 파이프라인을 에이전틱하게 운영하는 레이어.  
+각 스테이지는 Orchestrator가 호출하는 **도구(tool)**다.  
+Orchestrator는 실행 계획을 스스로 결정하고, Prompt Registry를 참조하며, 상태를 저장·재개한다.
+
+### 2-1. Orchestrator 도구 목록
+
+```python
+# Orchestrator가 호출할 수 있는 tools
+
+# ── 스테이지 실행 ─────────────────────────────────────────
+run_story_parser(prompt: str, params: dict) -> beat_structure
+run_scene_planner(beat_structure: dict, params: dict) -> scene_grammar
+run_scene_generator(scene: dict, anchors: dict) -> scene_asset   # 씬 단위
+run_subtitle_generator(scenes: list) -> subtitle_tracks
+run_pacing_engine(scene_grammar: dict, pacing_rules: dict) -> timing_manifest
+run_video_composer(assets: list, timing: dict) -> output_path
+
+# ── Prompt Registry ──────────────────────────────────────
+save_prompt(stage, template_version, params, score, tags) -> prompt_id
+load_prompt(prompt_id) -> params
+search_prompts(stage, tags, min_score) -> list[PromptEntry]
+
+# ── Run State ────────────────────────────────────────────
+save_run_state(run_id, stage, output_path) -> None
+load_run_state(run_id) -> RunState
+list_runs(filter) -> list[RunState]
+
+# ── Stage Override ───────────────────────────────────────
+set_override(stage, source_path) -> None     # 이 스테이지는 스킵, 이 파일 사용
+clear_override(stage) -> None
+get_overrides() -> dict
+
+# ── Consistency ──────────────────────────────────────────
+check_scene_consistency(scene_asset, anchors) -> ConsistencyResult
+```
+
+### 2-2. Orchestrator 시스템 프롬프트
+
+```
+You are a shortform video production orchestrator.
+You manage a 6-stage pipeline: story_parser → scene_planner → scene_generator
+→ subtitle_generator → pacing_engine → video_composer.
+
+## Decision Rules
+
+1. Run Start
+   - Check load_run_state() for existing resumable runs
+   - Check get_overrides() — skip overridden stages, use their output directly
+   - Check search_prompts() for relevant saved prompts before generating new ones
+
+2. Execution
+   - Run stages sequentially unless parallel execution is safe
+   - run_scene_generator: fire ALL scenes in parallel, collect results
+   - On consistency FAIL: retry that scene only (max_retry=2), then flag for human
+
+3. Prompt Registry
+   - After each stage: if output quality score ≥ 8.0, auto-save to registry
+   - When recalling: prefer prompts with same tags and higher score
+
+4. State
+   - save_run_state() after every stage completion
+   - On failure: state is already saved → resume from failed stage
+
+5. Override
+   - If override exists for a stage → skip run, use override output
+   - Log: "Stage {stage} skipped — using override: {path}"
+
+## User Intent Mapping
+
+"지난번 scene grammar 쓰자"     → set_override(scene_planner, last_run.scene_grammar)
+"씬 3만 다시 생성해줘"          → run_scene_generator(scenes[2], anchors)
+"이 프롬프트 저장해줘"          → save_prompt(stage, template, params, score, tags)
+"지난번 story parser 꺼내줘"    → search_prompts("story_parser") → load_prompt(id)
+"2단계부터 다시"                → load_run_state(run_id) → resume from stage 2
+"scene_grammar 이걸로 고정해"   → set_override("scene_planner", "data/custom/grammar.json")
+```
+
+### 2-3. Run State 스키마
+
+```json
+// data/runs/run_20260508_001/run_state.json
+{
+  "run_id": "run_20260508_001",
+  "created_at": "2026-05-08T14:00:00Z",
+  "status": "paused",
+  "user_prompt": "썸남 꼬시는 뷰티 루틴 영상",
+  "completed_stages": ["story_parser", "scene_planner"],
+  "current_stage": "scene_generator",
+  "failed_stage": null,
+  "outputs": {
+    "story_parser":  "data/runs/run_20260508_001/beat_structure.json",
+    "scene_planner": "data/runs/run_20260508_001/scene_grammar.json"
+  },
+  "overrides": {
+    "scene_planner": "data/custom/my_scene_grammar.json"
+  },
+  "prompts_used": {
+    "story_parser": "prompt_registry_id:sp_fav_003",
+    "scene_planner": "generated"
+  },
+  "scene_generator_progress": {
+    "total": 5,
+    "completed": [1, 2],
+    "failed": [],
+    "pending": [3, 4, 5]
+  }
+}
+```
+
+### 2-4. 오케스트레이터 실행 예시
+
+```
+User: "썸남 꼬시는 뷰티 루틴으로 숏폼 만들어줘"
+
+Orchestrator:
+  [1] get_overrides() → {} (없음)
+  [2] search_prompts("story_parser", tags=["lifestyle_kr"]) → sp_fav_003 (score=8.7)
+  [3] load_prompt("sp_fav_003") → params 로드
+  [4] run_story_parser(prompt, params=sp_fav_003) → beat_structure.json
+  [5] save_run_state(run_001, "story_parser", output)
+  [6] run_scene_planner(beat_structure) → scene_grammar.json
+  [7] save_run_state(run_001, "scene_planner", output)
+  [8] 병렬: run_scene_generator([scene_1, scene_2, scene_3, scene_4, scene_5], anchors)
+      scene_1 → PASS (0.92)
+      scene_2 → PASS (0.89)
+      scene_3 → FAIL consistency (0.67) → retry → PASS (0.88)
+      scene_4 → PASS (0.87)
+      scene_5 → PASS (0.91)
+  [9] save_run_state(run_001, "scene_generator", outputs)
+  [10] run_subtitle_generator(scenes) → subtitle_tracks/
+  [11] run_pacing_engine(scene_grammar, pacing_rules) → timing_manifest.json
+  [12] run_video_composer(assets, timing) → outputs/video_01.mp4
+  [13] score = 8.3 → save_prompt("scene_planner", "v1", params, 8.3, ["lifestyle_kr", "ppl"])
+
+---
+
+User: "지난번 scene grammar 그대로 쓰고 story만 바꿔서 다시 만들어줘"
+
+Orchestrator:
+  [1] load_run_state("run_20260508_001") → 이전 실행 로드
+  [2] set_override("scene_planner", "data/runs/run_001/scene_grammar.json")
+  [3] run_story_parser(new_prompt) → new_beat_structure.json
+  [4] save_run_state(run_002, "story_parser", output)
+  [5] get_overrides() → scene_planner is overridden
+      "Stage scene_planner skipped — using: run_001/scene_grammar.json"
+  [6] 병렬: run_scene_generator(all_scenes, anchors)  ← scene grammar 재사용
+  ... 이하 동일
+
+---
+
+User: "씬 4 다시 만들어줘"
+
+Orchestrator:
+  [1] load_run_state("run_20260508_001")
+  [2] run_scene_generator(scenes[3], anchors)  ← 씬 4만
+  [3] check_scene_consistency(new_asset, anchors) → PASS (0.91)
+  [4] save_run_state(run_001, "scene_generator_patch", {scene_4: new_path})
+  [5] run_video_composer(updated_assets, timing) → outputs/video_01_v2.mp4
+```
+
+---
+
+## 3. Prompt Registry
+
+마음에 들었던 프롬프트(파라미터 조합)를 저장하고, 나중에 같은 스테이지에서 재사용하는 시스템.
+
+### 3-1. Registry Entry 스키마
+
+```json
+// registry/prompts/entries.jsonl
+{
+  "id": "sp_fav_003",
+  "stage": "story_parser",
+  "template_version": "v1",
+  "created_at": "2026-05-08T13:00:00Z",
+  "score": 8.7,
+  "tags": ["lifestyle_kr", "hook_question", "ppl_natural"],
+  "description": "girly 타겟 썸/뷰티 훅 — 자연스러운 PPL 연결",
+  "params": {
+    "emotional_arc_pattern": "curiosity → relatable → tip → excited → friendly",
+    "target_persona": "girly",
+    "hook_type": "question",
+    "ppl_bridge": "내가 요즘 꼭 챙겨다니는 거"
+  },
+  "input_summary": "썸남 꼬시기 뷰티 루틴",
+  "output_sample": "registry/samples/sp_fav_003_output.json",
+  "run_id": "run_20260508_001"
+}
+```
+
+### 3-2. Registry 운영 규칙
+
+```
+저장 조건:
+  - score ≥ 8.0: 자동 저장 (orchestrator 자동)
+  - score < 8.0: 사용자 명시적 요청 시 저장
+
+검색 우선순위:
+  1. 동일 stage + 동일 tags + 최고 score
+  2. 동일 stage + 부분 tags 일치 + 최고 score
+  3. 동일 stage + 최고 score
+
+재사용 방식:
+  - load_prompt(id) → params를 템플릿 변수로 주입
+  - 템플릿 버전이 달라진 경우 호환성 경고 출력
+```
+
+### 3-3. Registry CLI
+
+```bash
+# 목록 보기
+harness registry list --stage scene_planner --tags lifestyle_kr
+
+# 특정 프롬프트 보기
+harness registry show sp_fav_003
+
+# 수동 저장
+harness registry save --run run_001 --stage scene_planner --score 8.5 --tags lifestyle_kr ppl
+
+# 적용 (다음 실행에 사용)
+harness registry use sp_fav_003
+
+# 삭제
+harness registry delete sp_fav_003
+```
+
+---
+
+## 4. 핵심 중간 표현 — Scene Grammar
 
 Scene Grammar는 이 시스템의 **유일한 중간 계약**이다.  
 모든 스테이지는 scene_grammar.json을 통해 소통한다.
@@ -952,8 +1189,18 @@ shortform-harness/
 │   ├── properties.yaml                  ← Output Consistency (property별)
 │   └── rules/pipeline_integrity.yaml   ← Pipeline Integrity
 │
-├── pipeline/                            ← [L2] 실행 레이어
-│   ├── loader.py
+├── orchestrator/                        ← [L3] Orchestrator Agent
+│   ├── agent.py                         ← 메인 오케스트레이터 (LLM agent)
+│   ├── tools.py                         ← 스테이지 도구 + registry/state 도구
+│   └── system_prompt.md                 ← 오케스트레이터 시스템 프롬프트
+│
+├── registry/                            ← Prompt Registry
+│   ├── prompts/
+│   │   └── entries.jsonl                ← 저장된 프롬프트 목록
+│   └── samples/                         ← 등록된 프롬프트의 출력 샘플
+│
+├── pipeline/                            ← [L2] 실행 레이어 (각 스테이지 도구 구현)
+│   ├── loader.py                        ← harness.yaml → active 템플릿 로드
 │   ├── story_parser.py
 │   ├── scene_planner.py
 │   ├── scene_generator.py              ← 씬별 병렬 실행
@@ -961,18 +1208,25 @@ shortform-harness/
 │   ├── pacing_engine.py               ← rule-based, LLM 아님
 │   └── video_composer.py              ← ffmpeg / Remotion
 │
-├── data/                               ← 런타임 산출물
-│   ├── style_profile.json
-│   ├── beat_structure.json
-│   ├── scene_grammar.json              ← 핵심 중간 표현
-│   ├── pacing_rules.json
-│   └── timing_manifest.json
+├── data/
+│   ├── runs/                            ← Run별 산출물 + 상태
+│   │   └── run_20260508_001/
+│   │       ├── run_state.json           ← 실행 상태 (재개 가능)
+│   │       ├── beat_structure.json
+│   │       ├── scene_grammar.json       ← 핵심 중간 표현
+│   │       ├── pacing_rules.json
+│   │       └── timing_manifest.json
+│   ├── custom/                          ← Stage Override용 직접 작성 파일
+│   │   └── my_scene_grammar.json
+│   └── style_profile.json              ← 레퍼런스 분석 결과 (재사용)
 │
 ├── assets/                             ← 생성된 씬 자산
 │   ├── character_ref.png
-│   ├── scene_001.mp4
-│   ├── scene_002.mp4
-│   └── subtitles/scene_001.srt
+│   ├── run_20260508_001/
+│   │   ├── scene_001.mp4
+│   │   ├── scene_002.mp4
+│   │   └── subtitles/scene_001.srt
+│   └── ...
 │
 ├── outputs/
 │   ├── video_01.mp4
