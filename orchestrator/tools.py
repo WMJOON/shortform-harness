@@ -1,8 +1,4 @@
-"""
-orchestrator/tools.py — 오케스트레이터가 호출하는 도구 함수 모음
-
-각 함수는 tool_use 형태로 오케스트레이터에 노출된다.
-"""
+"""orchestrator/tools.py — 오케스트레이터가 호출하는 도구 함수 모음."""
 
 from __future__ import annotations
 
@@ -12,19 +8,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pipeline import (
-    loader,
-    story_parser,
-    scene_planner,
-    scene_generator,
-    subtitle_generator,
-    pacing_engine,
-    video_composer,
-)
+from pipeline import loader, story_parser, scene_planner, scene_generator, subtitle_generator, pacing_engine, video_composer
+from pipeline.loader import HARNESS_ROOT
 
-HARNESS_ROOT = Path(__file__).parent.parent
 RUNS_DIR = HARNESS_ROOT / "data" / "runs"
 REGISTRY_PATH = HARNESS_ROOT / "registry" / "prompts" / "entries.jsonl"
+
+
+def _assets_dir(run_id: str) -> Path:
+    return RUNS_DIR / run_id / "assets"
 
 
 # ── Pipeline Stage Tools ───────────────────────────────────────────────────
@@ -46,8 +38,7 @@ def run_scene_generator(
     harness: dict | None = None,
 ) -> dict:
     h = harness or loader.load_harness()
-    assets_dir = RUNS_DIR / run_id / "assets"
-    return scene_generator.run(scene_grammar, h, assets_dir, scene_ids)
+    return scene_generator.run(scene_grammar, h, _assets_dir(run_id), scene_ids)
 
 
 def run_subtitle_generator(
@@ -72,11 +63,9 @@ def run_video_composer(
     harness: dict | None = None,
 ) -> str:
     h = harness or loader.load_harness()
-    assets_dir = RUNS_DIR / run_id / "assets"
     output_path = HARNESS_ROOT / "outputs" / f"{run_id}.mp4"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    result = video_composer.run(timing_manifest, scene_grammar, assets_dir, output_path, h)
-    return str(result)
+    return str(video_composer.run(timing_manifest, scene_grammar, _assets_dir(run_id), output_path, h))
 
 
 # ── Run State Tools ────────────────────────────────────────────────────────
@@ -91,15 +80,12 @@ def save_run_state(run_id: str, stage: str, data: Any) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     state_path = run_dir / "run_state.json"
 
-    state: dict = {}
-    if state_path.exists():
+    try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        state = {}
 
-    state["run_id"] = run_id
-    state["current_stage"] = stage
-    state["updated_at"] = datetime.now().isoformat()
-    state[stage] = data
-
+    state.update({"run_id": run_id, "current_stage": stage, "updated_at": datetime.now().isoformat(), stage: data})
     state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -113,19 +99,16 @@ def load_run_state(run_id: str) -> dict:
 # ── Prompt Registry Tools ──────────────────────────────────────────────────
 
 def search_prompts(stage: str, tags: list[str] | None = None, top_k: int = 5) -> list[dict]:
-    if not REGISTRY_PATH.exists():
+    try:
+        with open(REGISTRY_PATH, encoding="utf-8") as f:
+            entries = [json.loads(line) for line in f if line.strip()]
+    except FileNotFoundError:
         return []
 
-    results = []
-    with open(REGISTRY_PATH, encoding="utf-8") as f:
-        for line in f:
-            entry = json.loads(line.strip())
-            if entry.get("stage") != stage:
-                continue
-            if tags and not any(t in entry.get("tags", []) for t in tags):
-                continue
-            results.append(entry)
-
+    results = [
+        e for e in entries
+        if e.get("stage") == stage and (not tags or any(t in e.get("tags", []) for t in tags))
+    ]
     results.sort(key=lambda e: e.get("score", 0), reverse=True)
     return results[:top_k]
 
@@ -158,19 +141,8 @@ def save_prompt(
 # ── Validation Tools ───────────────────────────────────────────────────────
 
 def check_consistency(scene_grammar: dict) -> list[dict]:
-    """consistency/properties.yaml 기준 property별 일관성 검사 (stub)."""
-    # TODO: CLIP 임베딩, RMS 분석 등 실제 구현
-    issues = []
-    anchors = scene_grammar.get("consistency_anchors", {})
-    for scene in scene_grammar.get("scenes", []):
-        if not scene.get("visual_prompt", "").strip():
-            issues.append({
-                "scene_id": scene["id"],
-                "property": "character.visual",
-                "issue": "visual_prompt is empty",
-                "severity": "error",
-            })
-    return issues
+    from consistency.checker import check_scene_grammar
+    return check_scene_grammar(scene_grammar)
 
 
 def check_pipeline_integrity(
@@ -178,35 +150,12 @@ def check_pipeline_integrity(
     scene_grammar: dict | None = None,
     timing_manifest: dict | None = None,
 ) -> list[dict]:
-    """consistency/rules/pipeline_integrity.yaml 규칙 검사."""
+    from consistency.checker import check_beat_structure, check_scene_grammar, check_timing_manifest
     issues = []
-
     if beat_structure:
-        beats = beat_structure.get("beats", [])
-        if beats and beats[0].get("function") != "hook":
-            issues.append({"rule": "PI002", "message": "First beat is not hook"})
-
-        ratio_sum = sum(b.get("duration_ratio", 0) for b in beats)
-        if abs(ratio_sum - 1.0) > 0.01:
-            issues.append({"rule": "PI001", "message": f"duration_ratio sum={ratio_sum:.4f} ≠ 1.0"})
-
+        issues.extend(check_beat_structure(beat_structure))
     if scene_grammar:
-        scenes = scene_grammar.get("scenes", [])
-        if scenes and scenes[0].get("scene_type") != "hook":
-            issues.append({"rule": "PI002", "message": "scenes[0] is not hook"})
-
-        ppl = scene_grammar.get("narrative", {}).get("ppl_present", False)
-        has_product = any(s.get("scene_type") == "product_focus" for s in scenes)
-        if ppl and not has_product:
-            issues.append({"rule": "PI003", "message": "ppl_present but no product_focus scene"})
-
+        issues.extend(check_scene_grammar(scene_grammar))
     if scene_grammar and timing_manifest:
-        grammar_count = len(scene_grammar.get("scenes", []))
-        timing_count = len(timing_manifest.get("scenes", []))
-        if grammar_count != timing_count:
-            issues.append({
-                "rule": "PI004",
-                "message": f"scene count mismatch: grammar={grammar_count}, timing={timing_count}",
-            })
-
+        issues.extend(check_timing_manifest(timing_manifest, scene_grammar))
     return issues

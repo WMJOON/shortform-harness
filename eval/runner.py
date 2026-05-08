@@ -1,19 +1,20 @@
-"""
-eval/runner.py — Template eval_cases 실행기
-
-각 템플릿 YAML의 eval_cases를 읽어 fixture 기준 출력을 검증한다.
-"""
+"""eval/runner.py — Template eval_cases 실행기."""
 
 from __future__ import annotations
 
 import json
-import operator
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-HARNESS_ROOT = Path(__file__).parent.parent
+# standalone 스크립트 실행 시 프로젝트 루트를 sys.path에 추가
+_ROOT = Path(__file__).parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+HARNESS_ROOT = _ROOT
 TEMPLATES_DIR = HARNESS_ROOT / "templates"
 FIXTURES_DIR = HARNESS_ROOT / "eval" / "fixtures"
 

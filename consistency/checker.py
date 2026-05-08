@@ -1,61 +1,43 @@
-"""
-consistency/checker.py — Output Consistency + Pipeline Integrity 통합 검사기
-
-각 스테이지 직후 호출되어 property별 일관성과 파이프라인 정합성을 검증한다.
-"""
+"""consistency/checker.py — Output Consistency + Pipeline Integrity 통합 검사기."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import yaml
-
-HARNESS_ROOT = Path(__file__).parent.parent
-PROPERTIES_CONFIG = HARNESS_ROOT / "consistency" / "properties.yaml"
-INTEGRITY_CONFIG = HARNESS_ROOT / "consistency" / "rules" / "pipeline_integrity.yaml"
+from pipeline.loader import HARNESS_ROOT
+from pipeline.constants import SceneType, BeatFunction
 
 
 def check_scene_grammar(scene_grammar: dict) -> list[dict]:
-    """Stage 2 직후: schema 수준 이상의 일관성 검사."""
     issues = []
     scenes = scene_grammar.get("scenes", [])
     anchors = scene_grammar.get("consistency_anchors", {})
 
-    # PI002
-    if scenes and scenes[0].get("scene_type") != "hook":
+    if scenes and scenes[0].get("scene_type") != SceneType.HOOK:
         issues.append(_issue("PI002", "error", "scenes[0].scene_type must be 'hook'"))
 
-    # PI003: ppl_present → product_focus 씬 존재
     ppl = scene_grammar.get("narrative", {}).get("ppl_present", False)
-    has_product = any(s.get("scene_type") == "product_focus" for s in scenes)
+    has_product = any(s.get("scene_type") == SceneType.PRODUCT_FOCUS for s in scenes)
     if ppl and not has_product:
         issues.append(_issue("PI003", "error", "ppl_present=true but no product_focus scene"))
 
-    # consistency_anchors 임베드 검사
     char_desc = anchors.get("character", {}).get("description", "")
-    for s in scenes:
-        vp = s.get("visual_prompt", "")
-        # 최소한 character description의 핵심 단어가 포함돼야 함
-        first_word = char_desc.split()[0] if char_desc else ""
-        if first_word and first_word.lower() not in vp.lower():
-            issues.append(_issue(
-                "character.visual", "warning",
-                f"scene {s['id']} visual_prompt may be missing character anchor",
-            ))
-            break  # 첫 번째만 보고
+    first_word = char_desc.split()[0] if char_desc else ""
+    if first_word:
+        for s in scenes:
+            if first_word.lower() not in s.get("visual_prompt", "").lower():
+                issues.append(_issue("character.visual", "warning",
+                    f"scene {s['id']} visual_prompt may be missing character anchor"))
+                break
 
-    # PI006: avg 씬 길이 허용범위
-    if scenes:
+    pacing_avg = scene_grammar.get("pacing_avg_hint", 0)
+    if scenes and pacing_avg:
         avg = sum(s.get("duration", 0) for s in scenes) / len(scenes)
-        pacing_avg = scene_grammar.get("pacing_avg_hint", 0)
-        if pacing_avg and abs(avg - pacing_avg) / pacing_avg > 0.20:
+        if abs(avg - pacing_avg) / pacing_avg > 0.20:
             issues.append(_issue("PI006", "warning", f"avg scene duration {avg:.2f}s deviates >20% from pacing rule"))
 
     return issues
 
 
 def check_timing_manifest(timing_manifest: dict, scene_grammar: dict) -> list[dict]:
-    """Stage 5 직후: PI004 + 총 길이 검사."""
     issues = []
 
     grammar_count = len(scene_grammar.get("scenes", []))
@@ -78,13 +60,12 @@ def check_timing_manifest(timing_manifest: dict, scene_grammar: dict) -> list[di
 
 
 def check_beat_structure(beat_structure: dict) -> list[dict]:
-    """Stage 1 직후: PI001 + PI002(beat) 검사."""
     issues = []
     beats = beat_structure.get("beats", [])
 
-    if beats and beats[0].get("function") != "hook":
+    if beats and beats[0].get("function") != BeatFunction.HOOK:
         issues.append(_issue("PI002", "error", "beats[0].function must be 'hook'"))
-    if beats and beats[-1].get("function") != "cta":
+    if beats and beats[-1].get("function") != BeatFunction.CTA:
         issues.append(_issue("PI002", "error", "beats[-1].function must be 'cta'"))
 
     ratio_sum = sum(b.get("duration_ratio", 0) for b in beats)
