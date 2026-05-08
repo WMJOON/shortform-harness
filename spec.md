@@ -1,6 +1,6 @@
 # Shortform Video Generation Harness — System Spec
 
-> version: 0.2.0  
+> version: 0.3.0  
 > status: draft  
 > date: 2026-05-08
 
@@ -10,22 +10,81 @@
 
 텍스트 프롬프트 하나를 받아 레퍼런스 숏폼 영상의 스타일을 따르는 숏폼 영상을 생성하는 재사용 가능한 파이프라인.
 
-**핵심 설계 원칙:**
-- "영상 1편"이 아니라 "같은 시스템으로 다른 입력 → 다른 결과"를 증명하는 시스템
+**핵심 철학:**
+
+> We do not generate a full video directly.  
+> Instead, we decompose narrative into scene beats → generate scenes independently → re-compose using pacing constraints → apply style-consistent subtitle/cut rules.
+
+숏폼은 "영상"이 아니라 **attention rhythm assembly**다.  
+레퍼런스 영상의 스타일 핵심은 frame quality가 아니라 **cut sequencing**에 있다:
+
+- 0~2초 hook
+- reaction cut
+- zoom timing
+- subtitle burst
+- emotional beat
+- pacing transition
+
+따라서 시스템의 목표는 "영상 생성"이 아니라 **영상 문법(Scene Grammar)을 생성하고 조립**하는 것이다.
+
+**설계 원칙:**
+- 전체 영상 one-shot 생성 금지 — 씬 단위 생성 후 조립
+- Scene Grammar가 유일한 중간 표현 — 모든 스테이지가 이 JSON을 통해 소통
+- Pacing Engine이 스타일을 결정 — 컷 길이·자막·전환이 deterministic
 - 프롬프트는 코드에 박지 않는다 — 독립 파일로 분리, eval 가능
-- 분석↔생성 단계를 JSON 계약으로 완전 분리
 - Property를 1급 아티팩트로 관리 — 코드 변경 없이 확장
+- 씬 단위 실패 복구 — scene 3 실패 시 scene 3만 재생성
 
 ---
 
-## 1. 시스템 레이어 구조
+## 1. 파이프라인 구조
 
-시스템은 3개 레이어로 구성된다.
+### 1-1. 6단계 파이프라인
+
+```
+[입력] 텍스트 프롬프트
+    ↓
+┌─────────────────────┐
+│  1. Story Parser    │  narrative → beat structure
+│     (LLM)          │  emotional arc, hook position, climax point
+└──────────┬──────────┘
+           ↓ beat_structure.json
+┌─────────────────────┐
+│  2. Scene Planner   │  beat → scene_grammar.json
+│     (LLM)          │  scene_type / duration / camera / emotion / pacing
+└──────────┬──────────┘
+           ↓ scene_grammar.json  ← 핵심 중간 표현
+    ┌──────┴──────┐
+    ↓             ↓
+┌──────────┐  ┌──────────────────┐
+│ 3. Scene │  │ 4. Subtitle      │
+│ Generator│  │    Generator     │
+│(Kling/   │  │ (ElevenLabs TTS  │
+│ GPT-img) │  │  + Whisper align)│
+└──────────┘  └──────────────────┘
+    ↓ scene_assets/      ↓ subtitle_tracks/
+    └──────┬─────────────┘
+           ↓
+┌─────────────────────┐
+│  5. Pacing Engine   │  pacing_rules.json → timing manifest
+│     (rule-based)    │  cut duration / transitions / zoom / bgm cues
+└──────────┬──────────┘
+           ↓ timing_manifest.json
+┌─────────────────────┐
+│  6. Video Composer  │  ffmpeg / Remotion → output.mp4
+└──────────┬──────────┘
+           ↓
+      output.mp4 (9:16, 30~45초)
+```
+
+### 1-2. 시스템 레이어 구조
+
+파이프라인 위에 3개 레이어가 얹힌다.
 
 ```
 ┌────────────────────────────────────────────────────────────┐
 │  Layer 3: APO (Automatic Prompt Optimization)              │
-│  피드백 루프 — 출력 점수 → 후보 템플릿 생성 → eval → 승격   │
+│  출력 점수 → 후보 템플릿 생성 → eval → 승격                 │
 └───────────────────────┬────────────────────────────────────┘
                         │ 피드백 루프
 ┌───────────────────────▼────────────────────────────────────┐
@@ -39,49 +98,239 @@
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 실행 흐름 요약
+### 1-3. 완전 실행 흐름
 
 ```
 [입력] 텍스트 프롬프트
     ↓ [L2] harness.yaml → active 템플릿 + active property 로드
-    ↓ [L1] eval/runner.py → 활성 템플릿 사전 검증 (fail → 중단)
+    ↓ [L1] eval/runner.py → 사전 검증 (fail → 중단)
     ↓
-    ↓ [L1] STAGE 1: analyze   → style_profile.json
-    ↓       consistency/checker.py (Intra-doc: ID rules)
-    ↓       consistency/checker.py (Property-contract: PC rules)
+    ↓ STAGE 1: Story Parser   → beat_structure.json
+    ↓          consistency/checker.py (Pipeline Integrity)
     ↓
-    ↓ [L1] STAGE 2: script    → scene_script.json
-    ↓       consistency/checker.py (Intra-doc: ID rules)
-    ↓       consistency/checker.py (Cross-stage: CS rules — style_profile × scene_script)
+    ↓ STAGE 2: Scene Planner  → scene_grammar.json
+    ↓          consistency/checker.py (ID + PC rules)
+    ↓          consistency_anchors 확정 → assets/에 저장
     ↓
-    ↓ [L1] STAGE 3: assemble  → assemble_plan.json → output.mp4
-    ↓       consistency/checker.py (Cross-stage: CS rules — scene_script × assemble_plan)
+    ↓ STAGE 3: Scene Generator → scene_assets/ (병렬)
+    ↓          씬별 생성 → Output Consistency 즉시 검증
+    ↓          FAIL → 재생성 (max_retry: 2)
     ↓
-    ↓ [L3] scorer.py          → rubric 점수화
-    ↓ [L3] optimizer.py       → 후보 템플릿 생성
-    ↓       consistency/checker.py (전체 cross-stage: 후보 템플릿 회귀 검증)
-    ↓ HITL Gate               → 승인 시 harness.yaml 업데이트
+    ↓ STAGE 4: Subtitle Generator → subtitle_tracks/
+    ↓
+    ↓ STAGE 5: Pacing Engine → timing_manifest.json
+    ↓          consistency/checker.py (CS: scene_grammar × timing)
+    ↓
+    ↓ STAGE 6: Video Composer → output.mp4
+    ↓          consistency_report.json 생성
+    ↓
+    ↓ [L3] scorer.py → rubric 점수화
+    ↓ [L3] optimizer.py → 후보 템플릿 생성
+    ↓ HITL Gate → 승인 시 harness.yaml 업데이트
 ```
 
 ---
 
-## 2. Property 시스템
+## 2. 핵심 중간 표현 — Scene Grammar
 
-스타일 property는 3단계 레이어로 관리된다.
-코드를 건드리지 않고 property 추가·변경·override가 가능하다.
+Scene Grammar는 이 시스템의 **유일한 중간 계약**이다.  
+모든 스테이지는 scene_grammar.json을 통해 소통한다.
 
-### 2-1. Registry (전역 카탈로그)
+```json
+{
+  "prompt": "사용자 입력 프롬프트 원문",
+  "narrative": {
+    "concept": "썸남 꼬시는 뷰티 루틴",
+    "beat_count": 5,
+    "total_duration_sec": 38,
+    "target_persona": "girly",
+    "emotional_arc": "curiosity → relatable → tip → excited → friendly"
+  },
+  "scenes": [
+    {
+      "id": 1,
+      "scene_type": "hook",
+      "duration": 2.0,
+      "camera": "selfie-close",
+      "subtitle_density": "high",
+      "emotion": "curiosity",
+      "voiceover": "썸남 100% 꼬시는 법 알려줄게",
+      "visual_prompt": "20대 한국 여성, 정면 직캠, 자신감 있는 표정, 밝은 실내",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "cut",
+      "bgm_cue": "fade_in"
+    },
+    {
+      "id": 2,
+      "scene_type": "reaction",
+      "duration": 1.2,
+      "camera": "medium-shot",
+      "subtitle_density": "low",
+      "emotion": "relatable",
+      "voiceover": "솔직히 다들 고민이잖아",
+      "visual_prompt": "같은 인물, 공감하는 표정, 약간 측면",
+      "zoom": true,
+      "transition_in": "cut",
+      "transition_out": "smash-cut",
+      "bgm_cue": "continue"
+    },
+    {
+      "id": 3,
+      "scene_type": "tip",
+      "duration": 3.5,
+      "camera": "medium-close",
+      "subtitle_density": "medium",
+      "emotion": "informative",
+      "voiceover": "첫 번째는 향기야. 향이 기억에 남거든",
+      "visual_prompt": "같은 인물, 손짓 포함, 설명하는 제스처",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "cut",
+      "bgm_cue": "continue"
+    },
+    {
+      "id": 4,
+      "scene_type": "product_focus",
+      "duration": 4.0,
+      "camera": "product-closeup",
+      "subtitle_density": "high",
+      "caption_style": "burst",
+      "emotion": "excited",
+      "voiceover": "내가 요즘 꼭 챙겨다니는 거",
+      "visual_prompt": "스너글 섬유탈취제 클로즈업, 손에 들고 있음",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "cut",
+      "bgm_cue": "energy_up"
+    },
+    {
+      "id": 5,
+      "scene_type": "cta",
+      "duration": 2.5,
+      "camera": "selfie-medium",
+      "subtitle_density": "medium",
+      "emotion": "friendly",
+      "voiceover": "올영세일 때 얼른 쟁여 girly❤️",
+      "visual_prompt": "같은 인물, 손 흔들기, 웃는 표정",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "fade",
+      "bgm_cue": "fade_out"
+    }
+  ],
+  "consistency_anchors": {
+    "character": {
+      "reference_image": "assets/character_ref.png",
+      "description": "20대 한국 여성, 갈색 웨이브 헤어, 베이지 니트 상의",
+      "negative_prompt": "different hairstyle, different outfit, different person"
+    },
+    "background": {
+      "style": "minimal_indoor_warm",
+      "color_palette": ["#FAF0E6", "#D4A574", "#FFFFFF"]
+    },
+    "voice": {
+      "tts_voice_id": "elevenlabs_kr_female_01",
+      "speed_wpm": 180
+    },
+    "subtitle": {
+      "font": "Noto Sans KR Bold",
+      "color": "#FFFFFF",
+      "stroke": "#000000",
+      "position": "center",
+      "emphasis_color": "#FF6B9D"
+    }
+  },
+  "hashtags": ["#썸", "#뷰티팁", "#스킨케어"]
+}
+```
+
+---
+
+## 3. Pacing Engine
+
+숏폼 스타일의 핵심. **컷 리듬이 스타일을 결정한다.**
+
+### 3-1. pacing_rules.json
+
+```json
+{
+  "hook_max_duration": 2.5,
+  "avg_scene_length": 1.7,
+  "caption_interval_ms": 900,
+  "zoom_probability": 0.35,
+  "smash_cut_probability": 0.25,
+  "subtitle_burst_on_emphasis": true,
+  "bgm_duck_ratio": 0.4,
+  "energy_curve": "fast-open → slow-mid → fast-close",
+  "scene_type_duration_bounds": {
+    "hook":          { "min": 1.5, "max": 2.5 },
+    "reaction":      { "min": 0.8, "max": 1.5 },
+    "tip":           { "min": 2.0, "max": 5.0 },
+    "product_focus": { "min": 3.0, "max": 6.0 },
+    "cta":           { "min": 1.5, "max": 3.0 }
+  },
+  "transition_rules": {
+    "hook → reaction":      "smash-cut",
+    "reaction → tip":       "cut",
+    "tip → product_focus":  "cut",
+    "product_focus → cta":  "cut",
+    "default":              "cut"
+  }
+}
+```
+
+pacing_rules.json은 style_profile에서 추출한 수치로 채워진다.
+
+### 3-2. timing_manifest.json (Pacing Engine 출력)
+
+```json
+{
+  "total_duration_sec": 38.0,
+  "scenes": [
+    {
+      "id": 1,
+      "start_sec": 0.0,
+      "end_sec": 2.0,
+      "transition_out": "cut",
+      "zoom": false,
+      "bgm": { "action": "fade_in", "volume": 0.3 },
+      "subtitle_timing": [
+        { "text": "썸남", "start_ms": 0, "end_ms": 400 },
+        { "text": "100%", "start_ms": 400, "end_ms": 750, "emphasis": true },
+        { "text": "꼬시는 법", "start_ms": 750, "end_ms": 1200 },
+        { "text": "알려줄게", "start_ms": 1200, "end_ms": 2000 }
+      ]
+    }
+  ],
+  "bgm_track": "upbeat-kpop-inst",
+  "bgm_duck_points": [
+    { "start_sec": 0, "end_sec": 38, "ratio": 0.4 }
+  ]
+}
+```
+
+---
+
+## 4. Property 시스템
+
+스타일 property는 3단계 레이어로 관리된다.  
+코드를 건드리지 않고 property 추가·변경·override가 가능하다.  
+이 property들이 pacing_rules.json과 scene_grammar.json을 채운다.
+
+### 4-1. Registry (전역 카탈로그)
 
 ```yaml
 # properties/registry.yaml
 
 properties:
 
-  # ── 시간 구조 ────────────────────────────────────────────
+  # ── 후크 ─────────────────────────────────────────────────
   hook.position_sec:
     type: number
     description: "후크 등장 시점 (초)"
     extract_method: whisper_timestamp
+    maps_to: pacing_rules.hook_max_duration
     default_eval: { lte: 3.0 }
     apo_weight: high
 
@@ -89,19 +338,36 @@ properties:
     type: enum
     values: [question, teaser, shock, list_preview, statement]
     extract_method: llm_classify
+    maps_to: scene_grammar.scenes[0].scene_type_variant
     default_eval: required
     apo_weight: high
 
+  # ── 컷 리듬 ──────────────────────────────────────────────
   cuts.avg_duration_sec:
     type: number
     extract_method: ffmpeg_scene_detect
+    maps_to: pacing_rules.avg_scene_length
     default_eval: { gte: 1.0, lte: 5.0 }
-    apo_weight: medium
+    apo_weight: high
 
   cuts.rhythm_pattern:
     type: enum
     values: [fast-open, slow-open, constant, fast-close, accelerating]
     extract_method: llm_classify
+    maps_to: pacing_rules.energy_curve
+    apo_weight: high
+
+  cuts.zoom_probability:
+    type: number
+    extract_method: visual_analysis
+    maps_to: pacing_rules.zoom_probability
+    default_eval: { gte: 0.0, lte: 1.0 }
+    apo_weight: medium
+
+  cuts.smash_cut_probability:
+    type: number
+    extract_method: visual_analysis
+    maps_to: pacing_rules.smash_cut_probability
     apo_weight: medium
 
   # ── 자막 ─────────────────────────────────────────────────
@@ -109,19 +375,28 @@ properties:
     type: enum
     values: [tight, loose, none]
     extract_method: whisper_align
+    maps_to: pacing_rules.caption_interval_ms
     apo_weight: medium
 
   subtitle.emphasis_style:
     type: enum
     values: [color_change, size_change, bold, underline, none]
     extract_method: vision_llm
+    maps_to: scene_grammar.consistency_anchors.subtitle.emphasis_color
     apo_weight: low
 
   subtitle.position:
     type: enum
     values: [top, center, bottom, dynamic]
     extract_method: vision_llm
+    maps_to: scene_grammar.consistency_anchors.subtitle.position
     apo_weight: low
+
+  subtitle.burst_on_emphasis:
+    type: boolean
+    extract_method: llm_classify
+    maps_to: pacing_rules.subtitle_burst_on_emphasis
+    apo_weight: medium
 
   # ── 오디오 / BGM ─────────────────────────────────────────
   bgm.entry_sec:
@@ -129,9 +404,10 @@ properties:
     extract_method: audio_analysis
     apo_weight: low
 
-  bgm.duck_on_speech:
-    type: boolean
+  bgm.duck_ratio:
+    type: number
     extract_method: audio_analysis
+    maps_to: pacing_rules.bgm_duck_ratio
     apo_weight: low
 
   bgm.genre:
@@ -144,23 +420,32 @@ properties:
     type: string
     description: "타겟 직접 호칭 (girly, 언니들 등)"
     extract_method: llm_extract
+    maps_to: scene_grammar.narrative.target_persona
     apo_weight: high
 
   narrative.ppl_present:
     type: boolean
     extract_method: llm_classify
+    maps_to: scene_grammar.scenes[].scene_type (product_focus 포함 여부)
     apo_weight: medium
 
   narrative.ppl_bridge_phrase:
     type: string
-    description: "PPL 자연 연결 구문 패턴"
     extract_method: llm_extract
     apo_weight: medium
 
   narrative.segment_ratio:
     type: object
-    description: "hook/empathy/tip/ppl/cta 비율 (합산 1.0)"
+    description: "hook/reaction/tip/product_focus/cta 비율"
     extract_method: llm_segment
+    maps_to: scene_grammar.scenes[].duration 배분
+    apo_weight: medium
+
+  narrative.emotional_arc:
+    type: string
+    description: "씬 간 감정 흐름"
+    extract_method: llm_classify
+    maps_to: scene_grammar.narrative.emotional_arc
     apo_weight: medium
 
   # ── 확장 슬롯 ────────────────────────────────────────────
@@ -170,7 +455,10 @@ properties:
     apo_weight: user_defined
 ```
 
-### 2-2. Preset (장르별 묶음)
+**`maps_to` 필드**: 각 property가 어느 중간 산출물의 어느 필드를 채우는지 명시.  
+property 추가 시 코드 없이 이 한 줄로 파이프라인 반영 경로가 결정된다.
+
+### 4-2. Preset (장르별 묶음)
 
 ```yaml
 # properties/presets/lifestyle_kr.yaml
@@ -181,27 +469,33 @@ active_properties:
   - hook.type
   - cuts.avg_duration_sec
   - cuts.rhythm_pattern
+  - cuts.zoom_probability
+  - cuts.smash_cut_probability
   - subtitle.sync_tightness
   - subtitle.emphasis_style
+  - subtitle.burst_on_emphasis
   - bgm.entry_sec
-  - bgm.duck_on_speech
+  - bgm.duck_ratio
   - narrative.target_persona
   - narrative.ppl_present
   - narrative.ppl_bridge_phrase
   - narrative.segment_ratio
+  - narrative.emotional_arc
 
 weights:
-  hook.position_sec:           0.20
-  hook.type:                   0.15
-  cuts.avg_duration_sec:       0.15
-  narrative.target_persona:    0.12
-  narrative.ppl_bridge_phrase: 0.10
-  subtitle.sync_tightness:     0.10
-  cuts.rhythm_pattern:         0.08
-  narrative.segment_ratio:     0.10
+  hook.position_sec:            0.15
+  hook.type:                    0.10
+  cuts.avg_duration_sec:        0.15
+  cuts.rhythm_pattern:          0.10
+  cuts.zoom_probability:        0.05
+  subtitle.sync_tightness:      0.10
+  subtitle.burst_on_emphasis:   0.05
+  narrative.target_persona:     0.12
+  narrative.emotional_arc:      0.08
+  narrative.segment_ratio:      0.10
 ```
 
-### 2-3. Custom (레퍼런스별 override)
+### 4-3. Custom (레퍼런스별 override)
 
 ```yaml
 # properties/custom/amyglamy.yaml
@@ -216,373 +510,313 @@ overrides:
     eval: { lte: 2.5 }
   cuts.avg_duration_sec:
     eval: { gte: 1.0, lte: 3.0 }
+  cuts.zoom_probability:
+    eval: { gte: 0.3 }
 
 custom_properties:
   narrative.direct_address_style:
     type: string
     description: "girly / 언니 / 자기야 등 페르소나 호칭 패턴"
     extract_method: llm_extract
+    maps_to: scene_grammar.narrative.target_persona
     apo_weight: high
 ```
 
-### 2-4. Property 작업별 변경 파일
-
-| 작업 | 변경 파일 | 코드 변경 |
-|------|----------|----------|
-| 신규 property 정의 | `registry.yaml` | 없음 |
-| 레퍼런스별 추가/override | `custom/{채널}.yaml` | 없음 |
-| 장르 기본값 변경 | `presets/{장르}.yaml` | 없음 |
-| extract_method 구현 추가 | `pipeline/extractors.py` | 있음 |
-
 ---
 
-## 3. Layer 1 — Prompt Template Library
+## 5. Layer 1 — Prompt Template Library
 
-### 3-1. 템플릿 포맷
+각 스테이지별 템플릿은 독립 파일로 분리, eval_cases 내장.
+
+### 5-1. 템플릿 포맷 (Story Parser)
 
 ```yaml
-# templates/analyze/v1.yaml
-id: analyze-style-v1
-stage: analyze
+# templates/story_parser/v1.yaml
+id: story-parser-v1
+stage: story_parser
 version: "1.0"
-description: "레퍼런스 영상에서 스타일 프로파일 추출"
+description: "사용자 프롬프트 → beat structure 추출"
 
 input:
-  transcript:
-    type: string
-    description: "Whisper 타임스탬프 포함 스크립트"
-  cut_durations:
-    type: array
-    description: "ffmpeg 장면 분할 결과 (초 단위)"
-  video_duration:
-    type: number
-  active_properties:
-    type: object
-    description: "loader.py가 주입 — registry + custom 조합 결과"
+  user_prompt: { type: string }
+  target_persona: { type: string }
+  total_duration_sec: { type: number }
+  emotional_arc_pattern: { type: string, description: "style_profile에서 추출" }
 
 output:
-  schema: "schemas/style_profile.schema.json"
+  schema: "schemas/beat_structure.schema.json"
   format: json
 
 system: |
-  You are an expert at analyzing Korean short-form video style.
-  Extract precise, measurable parameters from the given transcript and cut data.
-  Return valid JSON matching the output schema exactly.
-  Only include keys listed in active_properties.
+  You are a shortform video narrative designer specialized in Korean lifestyle content.
+  Decompose the user's concept into emotional beats that drive attention.
+  Each beat must have a clear emotional function and contribute to the pacing arc.
 
 user: |
-  Analyze this YouTube Short and extract the style profile.
-
-  ## Properties to Extract
-  {{ active_properties }}
-
-  ## Transcript (with timestamps)
-  {{ transcript }}
-
-  ## Cut Durations (seconds)
-  {{ cut_durations }}
-
-  ## Video Total Duration
-  {{ video_duration }}s
-
-  Return a JSON object with exactly the property keys listed above.
-
-# eval 케이스 — 템플릿에 내장
-eval_cases:
-  - id: "amyglamy_case_001"
-    input_fixture: "eval/fixtures/analyze/amyglamy_001.json"
-    expected:
-      "hook.type": "question"
-      "hook.position_sec": { lte: 2.5 }
-      "cuts.avg_duration_sec": { gte: 1.0, lte: 3.0 }
-      "subtitle.sync_tightness": "tight"
-```
-
-```yaml
-# templates/script/v1.yaml
-id: script-gen-v1
-stage: script
-version: "1.0"
-description: "style_profile + 프롬프트 → scene_script 생성"
-
-input:
-  user_prompt:
-    type: string
-    description: "영상 스토리·컨셉 (자유 형식)"
-  style_profile:
-    type: object
-    description: "analyze 스테이지 출력"
-  active_properties:
-    type: object
-
-output:
-  schema: "schemas/scene_script.schema.json"
-  format: json
-
-system: |
-  You are a Korean short-form video scriptwriter.
-  Generate a scene-by-scene script that matches the given style profile exactly.
-  Every measurable parameter in the style profile must be reflected in the script.
-
-user: |
-  Create a short-form video script based on:
+  Create a beat structure for this shortform video concept.
 
   ## User Concept
   {{ user_prompt }}
 
-  ## Style Profile (must be reproduced)
-  {{ style_profile }}
+  ## Target Persona
+  {{ target_persona }}
 
-  ## Output Schema
-  {{ output_schema }}
+  ## Total Duration
+  {{ total_duration_sec }}s
 
-  Ensure:
-  - Hook appears within {{ style_profile.hook.position_sec }}s
-  - Hook type is {{ style_profile.hook.type }}
-  - Average cut duration ≈ {{ style_profile.cuts.avg_duration_sec }}s
-  - Target persona addressed as: {{ style_profile.narrative.target_persona }}
+  ## Emotional Arc Pattern
+  {{ emotional_arc_pattern }}
+
+  Extract beats following this arc. Each beat needs:
+  - emotional function (hook / empathy / tip / reveal / cta)
+  - duration ratio
+  - energy level (low / medium / high)
 
 eval_cases:
-  - id: "script_case_001"
-    input_fixture: "eval/fixtures/script/case_001.json"
+  - id: "story_parser_case_001"
+    input_fixture: "eval/fixtures/story_parser/case_001.json"
     expected:
-      "scenes[0].segment": "hook"
-      "scenes[0].duration_sec": { lte: 2.5 }
-      "total_duration_sec": { gte: 30, lte: 45 }
+      "beats[0].function": "hook"
+      "beats[0].energy": "high"
+      "beats[-1].function": "cta"
 ```
 
+### 5-2. 템플릿 포맷 (Scene Planner)
+
 ```yaml
-# templates/assemble/v1.yaml
-id: assemble-v1
-stage: assemble
+# templates/scene_planner/v1.yaml
+id: scene-planner-v1
+stage: scene_planner
 version: "1.0"
-description: "scene_script → 조립 지시 생성 (TTS 파라미터, 자막 스타일, BGM 큐)"
+description: "beat structure → scene_grammar.json 생성"
 
 input:
-  scene_script:
-    type: object
-  style_profile:
-    type: object
+  beat_structure: { type: object }
+  style_profile: { type: object }
+  pacing_rules: { type: object }
+  active_properties: { type: object }
 
 output:
-  schema: "schemas/assemble_plan.schema.json"
+  schema: "schemas/scene_grammar.schema.json"
   format: json
 
 system: |
-  You are a video post-production specialist.
-  Convert the scene script into precise technical assembly instructions.
+  You are a shortform video scene director.
+  Convert narrative beats into concrete scene grammar.
+  Each scene must have precise camera, emotion, subtitle density, and visual direction.
+  The output is deterministic assembly instructions — not creative writing.
 
 user: |
-  Generate assembly instructions for this scene script.
+  Generate scene grammar from these beats.
 
-  ## Scene Script
-  {{ scene_script }}
+  ## Beat Structure
+  {{ beat_structure }}
 
-  ## Style Reference
-  - Subtitle style: {{ style_profile.subtitle.emphasis_style }}
-  - Subtitle position: {{ style_profile.subtitle.position }}
-  - BGM entry: {{ style_profile.bgm.entry_sec }}s
-  - Speech duck: {{ style_profile.bgm.duck_on_speech }}
+  ## Style Constraints (must reproduce)
+  - hook.position_sec ≤ {{ style_profile.hook.position_sec }}s
+  - avg_scene_length ≈ {{ pacing_rules.avg_scene_length }}s
+  - zoom_probability = {{ pacing_rules.zoom_probability }}
+  - target_persona address: {{ style_profile.narrative.target_persona }}
 
-  Return assembly_plan JSON.
+  ## Active Scene Types
+  {{ active_properties.narrative.segment_ratio }}
+
+  Return scene_grammar JSON. Scenes must be self-contained generation units.
 
 eval_cases:
-  - id: "assemble_case_001"
-    input_fixture: "eval/fixtures/assemble/case_001.json"
+  - id: "scene_planner_case_001"
+    input_fixture: "eval/fixtures/scene_planner/case_001.json"
     expected:
-      "scenes[0].tts.language": "ko"
-      "bgm.entry_sec": { lte: 1.0 }
+      "scenes[0].scene_type": "hook"
+      "scenes[0].duration": { lte: 2.5 }
+      "narrative.emotional_arc": { contains: "curiosity" }
+```
+
+### 5-3. 템플릿 포맷 (Scene Generator)
+
+```yaml
+# templates/scene_generator/v1.yaml
+id: scene-generator-v1
+stage: scene_generator
+version: "1.0"
+description: "씬 1개 → 비주얼 생성 프롬프트 + API 파라미터"
+
+input:
+  scene: { type: object, description: "scene_grammar.scenes[i]" }
+  consistency_anchors: { type: object }
+  generation_backend: { type: enum, values: [kling, gpt_image_2, runway] }
+
+output:
+  schema: "schemas/generation_request.schema.json"
+  format: json
+
+system: |
+  You are a visual prompt engineer for Korean shortform video.
+  Convert scene grammar into a precise generation request for the target backend.
+  Consistency anchors must be embedded in every prompt.
+
+user: |
+  Generate a visual creation request for this scene.
+
+  ## Scene
+  {{ scene }}
+
+  ## Consistency Anchors (must be reproduced)
+  Character: {{ consistency_anchors.character.description }}
+  Background: {{ consistency_anchors.background.style }}
+  Negative: {{ consistency_anchors.character.negative_prompt }}
+
+  ## Backend
+  {{ generation_backend }}
+
+  Return a generation_request JSON with backend-specific parameters.
 ```
 
 ---
 
-## 4. Layer 2 — Template Staging System
+## 6. Layer 2 — Template Staging System
 
-### 4-1. harness.yaml
+### 6-1. harness.yaml
 
 ```yaml
 # harness.yaml
-version: "0.1"
+version: "0.3"
 
 # Property 설정
 properties:
   preset: properties/presets/lifestyle_kr.yaml
-  custom: properties/custom/amyglamy.yaml     # 없으면 preset만 사용
+  custom: properties/custom/amyglamy.yaml
 
-# 스테이지별 템플릿 버전 관리
+# 스테이지별 템플릿 버전
 stages:
-  analyze:
+  story_parser:
     active: v1
     candidates:
-      v1: templates/analyze/v1.yaml
-      v2: templates/analyze/v2.yaml           # 개발중
+      v1: templates/story_parser/v1.yaml
 
-  script:
+  scene_planner:
     active: v1
     candidates:
-      v1: templates/script/v1.yaml
-      v2: templates/script/v2.yaml            # PPL 브리지 강화
+      v1: templates/scene_planner/v1.yaml
+      v2: templates/scene_planner/v2.yaml    # 개발중
 
-  assemble:
+  scene_generator:
     active: v1
     candidates:
-      v1: templates/assemble/v1.yaml
+      v1: templates/scene_generator/v1.yaml
 
-# Eval 설정
+  subtitle_generator:
+    active: v1
+    candidates:
+      v1: templates/subtitle_generator/v1.yaml
+
+  pacing_engine:
+    backend: rule_based                       # LLM 아님, pacing_rules.json 직접 적용
+
+  video_composer:
+    backend: ffmpeg                           # or remotion
+    output_format: mp4
+    resolution: "1080x1920"                  # 9:16
+
+# Eval
 eval:
-  auto_run: true                              # 파이프라인 실행 전 자동 검증
-  fail_on_schema_error: true                  # FAIL 시 파이프라인 진입 차단
+  auto_run: true
+  fail_on_schema_error: true
 
-# APO 설정
+# APO
 apo:
   enabled: true
-  min_score_delta: 0.15                       # 15% 이상 개선 시 자동 승격 후보
-  hitl_required: true                         # 최종 승격은 인간 승인 필수
-```
+  min_score_delta: 0.15
+  hitl_required: true
 
-### 4-2. loader.py 책임
-
-```
-1. harness.yaml 파싱
-2. properties.preset 로드 → active_properties 목록 확정
-3. properties.custom 존재 시 → override / add_properties 적용
-4. registry.yaml에서 각 property 메타데이터 조회
-5. 각 stage의 active 템플릿 파일 로드
-6. 템플릿 변수 {{ active_properties }} 렌더링
-7. eval.auto_run: true → eval/runner.py 선실행, FAIL 시 중단
+# 생성 백엔드
+generation:
+  visual: kling                              # kling | gpt_image_2 | runway
+  tts: elevenlabs
+  tts_voice_id: elevenlabs_kr_female_01
 ```
 
 ---
 
-## 5. Layer 3 — APO (Automatic Prompt Optimization)
+## 7. Layer 3 — APO
 
-### 5-1. 루브릭
+### 7-1. 루브릭
 
 ```yaml
 # feedback/rubric.yaml
 dimensions:
   hook:
-    weight: 0.30
+    weight: 0.25
     criteria:
-      within_3s:        { type: binary }
+      within_2_5s:      { type: binary }
       question_format:  { type: binary }
       target_address:   { type: binary }
 
-  pacing:
+  cut_rhythm:
     weight: 0.25
     criteria:
-      avg_cut_sec:      { type: range, target: 2.3, tolerance: 0.5 }
-      hook_cut_shorter: { type: binary }
+      avg_cut_matches:  { type: range, target: 1.7, tolerance: 0.4 }
+      energy_curve:     { type: scale, range: [0, 10] }
+      zoom_applied:     { type: binary }
 
   subtitle:
     weight: 0.20
     criteria:
       speech_sync:      { type: scale, range: [0, 10] }
-      emphasis_present: { type: binary }
+      burst_on_emphasis:{ type: binary }
 
   ppl_integration:
     weight: 0.15
     criteria:
       natural_bridge:   { type: scale, range: [0, 10] }
-      position:         { type: enum, values: [mid, end] }
 
   human:
-    weight: 0.10
+    weight: 0.15
     criteria:
       overall_match:    { type: scale, range: [0, 10] }
 ```
 
-### 5-2. APO 루프
+### 7-2. APO 루프
 
 ```
-[1] 현재 active 템플릿 실행 → 출력 수집
-      ↓
-[2] scorer.py
-    루브릭 각 dimension 점수 계산
-    weighted_score = Σ(dimension_score × weight)
-      ↓
-[3] optimizer.py
-    meta-prompt → Claude API:
-    "이 템플릿은 pacing 점수 5/10이다.
-     cut_duration 제약 조건을 더 명시적으로 지정하여 개선하라.
-     변경된 템플릿 YAML을 반환하라."
-    → N개 후보 생성 → apo/candidates/ 저장
-      ↓
-[4] eval/runner.py
-    후보 vs 현재 fixture 점수 비교
-    delta = candidate_score - current_score
-      ↓
-[5] HITL Gate
-    자동 승격 조건:  delta >= min_score_delta AND schema 100% pass
-    인간 승인 조건:  delta > 0 AND human dimension 포함 시
-      ↓
-[6] 승인 시
-    templates/{stage}/v{n+1}.yaml 확정
-    harness.yaml active 업데이트
-    apo/history/runs.jsonl 기록
-```
-
-### 5-3. runs.jsonl 포맷
-
-```jsonl
-{
-  "run_id": "r001",
-  "stage": "analyze",
-  "from_version": "v1",
-  "to_version": "v1.1",
-  "score_delta": { "pacing": +2.1, "hook": 0.0, "total": +1.4 },
-  "promoted": true,
-  "promoted_by": "human",
-  "timestamp": "2026-05-08T14:22:00Z"
-}
-{
-  "run_id": "r002",
-  "stage": "script",
-  "from_version": "v1",
-  "to_version": "v1.1-cand",
-  "score_delta": { "ppl_integration": +1.3, "total": +0.8 },
-  "promoted": false,
-  "rejection_reason": "human_rejected: PPL 너무 강요됨",
-  "timestamp": "2026-05-08T16:05:00Z"
-}
+[1] active 템플릿 실행 → 출력 수집
+[2] scorer.py → rubric weighted_score 계산
+[3] optimizer.py → meta-prompt로 후보 템플릿 생성
+    (낮은 dimension 집중: "cut_rhythm 점수가 낮다. avg_scene_length 제약 강화하라")
+[4] eval/runner.py → fixture 기준 후보 검증
+[5] HITL Gate → 승인 시 버전 승격 + runs.jsonl 기록
 ```
 
 ---
 
-## 6. 검증 시스템 (Validation System)
+## 8. 검증 시스템
 
-4개 레이어가 각각 다른 질문에 답한다.
+### 8-1. 검증 레이어 요약
 
-| 시스템 | 질문 | 기준 | 실행 시점 |
-|--------|------|------|----------|
-| `schemas/` | JSON 형식이 맞는가? | 타입·구조 | 각 스테이지 출력 직후 |
-| `eval/runner.py` | 이 템플릿이 fixture 입력에 대해 기대 출력을 내는가? | fixture 고정값 | 파이프라인 진입 전 |
-| `consistency/checker.py` | **생성된 결과물이 property별로 영상 전체에서 일관된가?** | property 정의 | Stage 3 씬 생성 중·후 |
-| `apo/scorer.py` | 생성된 영상이 레퍼런스 스타일에 얼마나 가까운가? | 루브릭 점수 | 영상 완성 후 |
+| 시스템 | 질문 | 실행 시점 |
+|--------|------|----------|
+| `schemas/` | JSON 형식이 맞는가? | 각 스테이지 출력 직후 |
+| `eval/runner.py` | 템플릿이 fixture 기준 출력을 내는가? | 파이프라인 진입 전 |
+| `consistency/checker.py` | Scene Grammar와 Pacing이 서로 맞는가? | Stage 2·5 직후 |
+| `consistency/checker.py` | 생성된 씬 자산이 property별로 일관된가? | Stage 3 씬별 즉시 |
+| `apo/scorer.py` | 영상이 레퍼런스 스타일에 얼마나 가까운가? | 영상 완성 후 |
 
----
-
-### 6-1. Output Consistency — Property별 정의
-
-일관성 검증은 **property 단위로 정의**된다.  
-각 property는 씬 간 비교 방식(method)과 허용 임계값(threshold)을 갖는다.
+### 8-2. Output Consistency — Property별 정의
 
 ```yaml
 # consistency/properties.yaml
 
 properties:
 
-  # ── 비주얼 ────────────────────────────────────────────────
-
   character.visual:
     description: "캐릭터 얼굴·의상·헤어가 씬 전체에서 동일"
-    applies_to: scene_assets           # 생성된 이미지/영상 프레임
+    applies_to: scene_assets
     measurement:
       method: image_embedding_similarity
       model: CLIP
-      compare: each_scene_vs_anchor    # 첫 씬을 앵커로 나머지와 비교
+      compare: each_scene_vs_anchor
       threshold: 0.85
-    on_fail: flag_regenerate           # 해당 씬 재생성 트리거
+    on_fail: flag_regenerate
     severity: error
     apo_weight: high
 
@@ -598,301 +832,83 @@ properties:
     severity: warning
     apo_weight: medium
 
-  color_palette:
-    description: "전체 영상의 주요 색감 분포가 씬 간 유사"
-    applies_to: scene_assets
-    measurement:
-      method: histogram_similarity
-      bins: 16
-      threshold: 0.75
-    on_fail: warn
-    severity: warning
-    apo_weight: low
-
-  # ── 오디오 ────────────────────────────────────────────────
-
   voice.identity:
     description: "동일 TTS 보이스 ID가 전체 씬에 사용됨"
     applies_to: scene_audio
     measurement:
-      method: voice_id_exact_match     # assemble_plan의 voice_id 키 일치
-      compare: all_scenes_same
+      method: voice_id_exact_match
     on_fail: error
     severity: error
     apo_weight: high
 
   voice.energy_level:
-    description: "씬 간 에너지 레벨 급변 없음"
+    description: "씬 간 에너지 레벨 급변 없음 (RMS 기준)"
     applies_to: scene_audio
     measurement:
       method: audio_rms_variance
-      max_variance: 0.15               # RMS 기준 ±15% 이내
+      max_variance: 0.15
     on_fail: warn
     severity: warning
     apo_weight: medium
-
-  voice.speaking_rate:
-    description: "발화 속도(WPM)가 씬 간 일관"
-    applies_to: scene_audio
-    measurement:
-      method: wpm_variance
-      max_variance: 0.20
-    on_fail: warn
-    severity: warning
-    apo_weight: low
-
-  # ── 자막 ─────────────────────────────────────────────────
 
   subtitle.style:
     description: "자막 폰트·색상·위치·강조 방식이 씬 전체에서 동일"
     applies_to: scene_subtitle_configs
     measurement:
-      method: config_exact_match       # assemble_plan의 subtitle 설정 키 비교
+      method: config_exact_match
       keys: [font, color, position, emphasis_style]
     on_fail: error
     severity: error
     apo_weight: medium
 
-  # ── 타이밍 ────────────────────────────────────────────────
-
   pacing.rhythm:
-    description: "컷 길이 분포가 style_profile 기준에서 크게 벗어나지 않음"
+    description: "컷 길이 분포가 pacing_rules 기준에서 벗어나지 않음"
     applies_to: scene_durations
     measurement:
       method: duration_stddev_ratio
-      max_stddev_ratio: 0.30           # 평균의 30% 이하 표준편차
+      max_stddev_ratio: 0.30
     on_fail: warn
     severity: warning
     apo_weight: medium
 ```
 
----
-
-### 6-2. Consistency Anchor
-
-씬 생성 전 **앵커**를 scene_script.json에 명시한다.  
-이후 생성된 씬들은 앵커 기준으로 일관성을 검증받는다.
-
-```json
-// scene_script.json 내 consistency_anchors 필드
-{
-  "consistency_anchors": {
-    "character": {
-      "reference_image": "assets/character_ref.png",
-      "description": "20대 한국 여성, 갈색 웨이브 헤어, 베이지 니트 상의",
-      "negative_prompt": "different hairstyle, different outfit, different person"
-    },
-    "background": {
-      "style": "minimal_indoor_warm",
-      "description": "따뜻한 조명, 흰 벽, 미니멀 인테리어",
-      "color_palette": ["#FAF0E6", "#D4A574", "#FFFFFF"]
-    },
-    "voice": {
-      "tts_voice_id": "elevenlabs_kr_female_01",
-      "target_energy": "energetic_upbeat",
-      "speed_wpm": 180
-    },
-    "subtitle": {
-      "font": "Noto Sans KR Bold",
-      "color": "#FFFFFF",
-      "stroke": "#000000",
-      "position": "center",
-      "emphasis_color": "#FF6B9D"
-    }
-  }
-}
-```
-
----
-
-### 6-3. Checker 실행 흐름
-
-씬이 **생성될 때마다** 즉시 검증한다 — 전체 완성 후 한 번에 하지 않는다.
-
-```
-[Scene 1 생성] → consistency_anchors 최초 설정
-                  (character.visual 앵커 이미지 = scene_1_frame.png)
-
-[Scene 2 생성] → CLIP similarity(scene_2, anchor) = 0.91 → PASS
-[Scene 3 생성] → CLIP similarity(scene_3, anchor) = 0.67 → FAIL
-                  on_fail: flag_regenerate
-                  → scene_3를 consistency 제약 강화 프롬프트로 재생성
-                  → CLIP similarity(scene_3_v2, anchor) = 0.88 → PASS
-
-[전체 완성] → consistency_report.json 생성
-            → APO scorer로 전달 (consistency score 포함)
-```
-
----
-
-### 6-4. Consistency Report 포맷
-
-```json
-{
-  "consistency_report": {
-    "character.visual": {
-      "status": "PASS",
-      "method": "CLIP",
-      "scores": [1.0, 0.91, 0.88, 0.87, 0.90],
-      "threshold": 0.85,
-      "regenerated_scenes": [3]
-    },
-    "voice.identity": {
-      "status": "PASS",
-      "voice_id": "elevenlabs_kr_female_01",
-      "all_scenes_match": true
-    },
-    "voice.energy_level": {
-      "status": "WARN",
-      "rms_values": [0.72, 0.68, 0.85, 0.70, 0.69],
-      "variance": 0.17,
-      "threshold": 0.15
-    },
-    "subtitle.style": {
-      "status": "PASS"
-    },
-    "pacing.rhythm": {
-      "status": "PASS",
-      "durations": [2.0, 2.3, 1.8, 2.5, 2.1],
-      "stddev_ratio": 0.12
-    }
-  },
-  "overall": {
-    "errors": 0,
-    "warnings": 1,
-    "regenerations": 1
-  }
-}
-```
-
----
-
-### 6-5. Pipeline Integrity (JSON 로직 일관성)
-
-Output Consistency와 별개로, JSON 스테이지 간 논리 무결성도 검증한다.
+### 8-3. Pipeline Integrity Rules
 
 ```yaml
 # consistency/rules/pipeline_integrity.yaml
 rules:
-  - id: PI001  # total_duration == Σ scene durations
-  - id: PI002  # segment_ratio 합산 == 1.0
-  - id: PI003  # scenes[0].segment == "hook"
-  - id: PI004  # ppl_present → ppl segment 존재
-  - id: PI005  # assemble_plan scene 수 == scene_script scene 수
-  - id: PI006  # all active_properties keys present in style_profile
-```
-
-실행 시점: 각 JSON 스테이지 출력 직후 (Stage 3 asset 생성 전).
-
----
-
-### 6-6. 검증 게이트 전체 위치
-
-```
-파이프라인 실행:
-  eval/runner.py → FAIL이면 실행 차단
-
-  [Stage 1: analyze] → style_profile.json
-      schema validation
-      pipeline_integrity (PI006: property contract)
-
-  [Stage 2: script] → scene_script.json
-      schema validation
-      pipeline_integrity (PI001~PI005)
-      consistency_anchors 확정 → assets/에 저장
-
-  [Stage 3: assemble]
-      씬별 생성 → Output Consistency 즉시 검증
-        FAIL → 재생성 (max_retry: 2)
-      최종 assembly
-      consistency_report.json 생성
-
-  APO 후보 검증:
-      eval/runner.py (fixture) → PASS
-      pipeline_integrity → error 0
-      Output Consistency → error 0
-      → HITL 게이트 진입
+  - id: PI001  # beat_structure.total_sec == Σ beat durations
+  - id: PI002  # scene_grammar.scenes[0].scene_type == "hook"
+  - id: PI003  # ppl_present → scenes에 product_focus 존재
+  - id: PI004  # timing_manifest scene 수 == scene_grammar scene 수
+  - id: PI005  # all active_properties keys in style_profile
+  - id: PI006  # pacing_rules.avg_scene_length ≈ mean(scene durations) ±20%
 ```
 
 ---
 
-## 7. 중간 산출물 스키마
+## 9. 기술 스택
 
-### style_profile.json (analyze 출력)
+| 도구 | 스테이지 | 선택 이유 |
+|------|---------|----------|
+| `yt-dlp` | 레퍼런스 다운로드 | 무료, 안정적 |
+| `ffmpeg` | Scene 분할·오디오 추출·최종 합성 | 업계 표준, deterministic |
+| `Remotion` | Video Composer (대안) | React 기반, 자막·애니메이션 정밀 제어 |
+| `openai-whisper` | STT + 타임스탬프 | 한국어 정확도, 오픈소스 |
+| `Claude API` | Story Parser · Scene Planner · APO | JSON mode, 한국어 품질 |
+| `GPT Image 2` | Scene Generator (이미지) | 9:16 지원, 한국어 텍스트 렌더링, 공식 API |
+| `Kling AI` | Scene Generator (영상) | Character Reference 내장, API 제공 |
+| `ElevenLabs` | TTS (한국어) | 자연스러운 억양, REST API |
+| `CLIP` | Consistency 검증 | 이미지 임베딩 유사도 |
 
-```json
-{
-  "channel": "@AmyGlamy",
-  "hook": {
-    "type": "question",
-    "position_sec": 1.8,
-    "pattern_example": "girly들 썸탈 때 제일 중요한게 뭔지 알아?"
-  },
-  "cuts": {
-    "avg_duration_sec": 2.1,
-    "rhythm_pattern": "fast-open"
-  },
-  "subtitle": {
-    "sync_tightness": "tight",
-    "emphasis_style": "color_change",
-    "position": "center"
-  },
-  "bgm": {
-    "entry_sec": 0,
-    "duck_on_speech": true,
-    "genre": "upbeat-kpop-adjacent"
-  },
-  "narrative": {
-    "target_persona": "girly",
-    "ppl_present": true,
-    "ppl_bridge_phrase": "내가 요즘 꼭 챙겨다니는 거",
-    "segment_ratio": {
-      "hook": 0.07,
-      "empathy": 0.35,
-      "tip": 0.25,
-      "ppl": 0.25,
-      "cta": 0.08
-    },
-    "direct_address_style": "girly❤️"
-  }
-}
-```
-
-### scene_script.json (script 출력)
-
-```json
-{
-  "prompt": "사용자 입력 프롬프트 원문",
-  "total_duration_sec": 38,
-  "scenes": [
-    {
-      "id": 1,
-      "segment": "hook",
-      "duration_sec": 2.0,
-      "voiceover": "썸남 100% 꼬시는 법 알려줄게",
-      "subtitle": "썸남 100% 꼬시는 법 알려줄게",
-      "subtitle_emphasis": ["100%"],
-      "visual_direction": "정면 직캠, 자신감 있는 표정",
-      "bgm_cue": "fade_in"
-    },
-    {
-      "id": 2,
-      "segment": "empathy",
-      "duration_sec": 8.0,
-      "voiceover": "...",
-      "subtitle": "...",
-      "visual_direction": "...",
-      "bgm_cue": "continue"
-    }
-  ],
-  "bgm": "upbeat-kpop-inst",
-  "hashtags": ["#썸", "#연애팁", "#뷰티"]
-}
-```
+**왜 Kling/GPT Image 2 조합인가:**
+- GPT Image 2: 씬 이미지 생성, 한국어 텍스트 포함, 9:16 직접 지정
+- Kling AI: 이미지 → 영상 애니메이션, Character Reference로 일관성 유지
+- Midjourney: API 없음 → 파이프라인 불가
 
 ---
 
-## 7. 디렉토리 구조
+## 10. 디렉토리 구조
 
 ```
 shortform-harness/
@@ -900,121 +916,100 @@ shortform-harness/
 ├── harness.yaml                         ← [L2] 스테이징 설정
 │
 ├── properties/                          ← Property 시스템
-│   ├── registry.yaml                    ← 전역 property 카탈로그
-│   ├── presets/
-│   │   ├── lifestyle_kr.yaml
-│   │   └── product_review.yaml
-│   └── custom/
-│       └── amyglamy.yaml
+│   ├── registry.yaml
+│   ├── presets/lifestyle_kr.yaml
+│   └── custom/amyglamy.yaml
 │
 ├── templates/                           ← [L1] Prompt Template Library
-│   ├── analyze/
-│   │   ├── v1.yaml
-│   │   └── v2.yaml
-│   ├── script/
-│   │   ├── v1.yaml
-│   │   └── v2.yaml
-│   └── assemble/
-│       └── v1.yaml
+│   ├── story_parser/v1.yaml
+│   ├── scene_planner/v1.yaml
+│   ├── scene_generator/v1.yaml
+│   └── subtitle_generator/v1.yaml
 │
-├── schemas/                             ← 출력 JSON 스키마 (eval 기준)
-│   ├── style_profile.schema.json
-│   ├── scene_script.schema.json
-│   └── assemble_plan.schema.json
+├── schemas/                             ← JSON 스키마 (eval 기준)
+│   ├── beat_structure.schema.json
+│   ├── scene_grammar.schema.json        ← 핵심 중간 표현 스키마
+│   ├── generation_request.schema.json
+│   └── timing_manifest.schema.json
 │
-├── eval/                                ← [L1] Template Eval (fixture 기준)
+├── eval/                                ← [L1] Template Eval
 │   ├── runner.py
-│   ├── fixtures/
-│   │   ├── analyze/
-│   │   │   └── amyglamy_001.json        ← { input, expected_output }
-│   │   ├── script/
-│   │   │   └── case_001.json
-│   │   └── assemble/
-│   │       └── case_001.json
-│   └── validators/
-│       └── schema.py
+│   └── fixtures/
+│       ├── story_parser/case_001.json
+│       ├── scene_planner/case_001.json
+│       └── scene_generator/case_001.json
 │
-├── consistency/                         ← Output Consistency + Pipeline Integrity
-│   ├── checker.py                       ← 통합 실행기
-│   ├── properties.yaml                  ← property별 일관성 정의
-│   └── rules/
-│       └── pipeline_integrity.yaml      ← JSON 로직 무결성 규칙
-│
-├── feedback/                            ← [L3] APO 입력
-│   └── rubric.yaml
+├── feedback/rubric.yaml                 ← [L3] APO 루브릭
 │
 ├── apo/                                 ← [L3] Optimization Engine
 │   ├── scorer.py
 │   ├── optimizer.py
 │   ├── candidates/
-│   └── history/
-│       └── runs.jsonl
+│   └── history/runs.jsonl
+│
+├── consistency/                         ← Validation
+│   ├── checker.py
+│   ├── properties.yaml                  ← Output Consistency (property별)
+│   └── rules/pipeline_integrity.yaml   ← Pipeline Integrity
 │
 ├── pipeline/                            ← [L2] 실행 레이어
-│   ├── loader.py                        ← harness.yaml → 활성 템플릿 + property 조합
-│   ├── analyze.py
-│   ├── script.py
-│   ├── assemble.py
-│   └── extractors.py                    ← extract_method 구현체
+│   ├── loader.py
+│   ├── story_parser.py
+│   ├── scene_planner.py
+│   ├── scene_generator.py              ← 씬별 병렬 실행
+│   ├── subtitle_generator.py
+│   ├── pacing_engine.py               ← rule-based, LLM 아님
+│   └── video_composer.py              ← ffmpeg / Remotion
 │
-├── data/                                ← 런타임 중간 산출물
+├── data/                               ← 런타임 산출물
 │   ├── style_profile.json
-│   └── scene_script.json
+│   ├── beat_structure.json
+│   ├── scene_grammar.json              ← 핵심 중간 표현
+│   ├── pacing_rules.json
+│   └── timing_manifest.json
 │
-├── outputs/                             ← 생성된 영상
+├── assets/                             ← 생성된 씬 자산
+│   ├── character_ref.png
+│   ├── scene_001.mp4
+│   ├── scene_002.mp4
+│   └── subtitles/scene_001.srt
+│
+├── outputs/
 │   ├── video_01.mp4
 │   ├── video_02.mp4
 │   └── prompts.md
 │
-└── run.sh                               ← 전체 파이프라인 1-command 실행
+└── run.sh
 ```
 
 ---
 
-## 8. 기술 스택
-
-| 도구 | 용도 | 선택 이유 |
-|------|------|----------|
-| `yt-dlp` | 레퍼런스 영상 다운로드 | 무료, 안정적 CLI |
-| `ffmpeg` | 장면 분할·오디오 추출·최종 편집 | 업계 표준, 프로그래매틱 제어 |
-| `openai-whisper` | STT + 타임스탬프 추출 | 한국어 정확도, 오픈소스 |
-| `Claude API` | 스타일 분석 + 스크립트 생성 + APO | JSON mode, 한국어 품질 |
-| `ElevenLabs` | 한국어 TTS | 자연스러운 억양, REST API |
-| `HeyGen` | AI 아바타 영상 생성 | 1인 직캠 스타일 재현 |
-| `moviepy` + `PIL` | 자막 렌더링·컷 조합 | Python 통합, 세밀한 제어 |
-
-**왜 Kling/RunwayML 전체 생성이 아닌가:**
-- 스타일 파라미터(컷 길이, 자막 타이밍)를 프로그래매틱으로 제어 불가
-- style_profile.json 값이 실제 결과에 반영되는지 검증 어려움
-- HeyGen + moviepy 조합이 분석↔생성 분리 원칙에 부합
-
----
-
-## 9. 구현 우선순위 (Cut-line)
+## 11. 구현 우선순위 (Cut-line)
 
 | 우선순위 | 유지 | 포기 가능 |
 |---------|------|----------|
-| P0 | `properties/registry.yaml` + `custom/amyglamy.yaml` | — |
-| P0 | `templates/` 3개 스테이지 v1 | v2 이상 버전 |
-| P0 | `eval/runner.py` + 1개 fixture per stage | 다수 fixture |
-| P1 | `harness.yaml` + `pipeline/loader.py` | — |
-| P1 | `pipeline/analyze.py` + `script.py` | `assemble.py` 완전 자동화 |
+| P0 | `scene_grammar.schema.json` 스키마 정의 | — |
+| P0 | `templates/scene_planner/v1.yaml` + eval fixture | v2 이상 |
+| P0 | `pacing_rules.json` + `pacing_engine.py` | Remotion (ffmpeg로 대체) |
+| P1 | `properties/registry.yaml` + `custom/amyglamy.yaml` | — |
+| P1 | `pipeline/scene_generator.py` (Kling or GPT Image 2) | 고화질 |
 | P2 | 영상 2편 (동일 시스템, 다른 프롬프트) | 영상 품질 |
-| P3 | `apo/scorer.py` + `feedback/rubric.yaml` | `apo/optimizer.py` |
+| P3 | `apo/scorer.py` + `consistency/checker.py` | `apo/optimizer.py` |
 
 ---
 
-## 10. 제출물 체크리스트
+## 12. 제출물 체크리스트
 
 ```
-□ README.md        — 실행 방법, 아키텍처 다이어그램
-□ analysis.md      — 레퍼런스 분석 (바이럴 포인트, 재현 판단, 미재현 이유)
-□ retro.md         — 가설, 막힌 지점, 사용 모델, 개선점
-□ harness.yaml     — 스테이징 설정
-□ templates/       — 3 스테이지 × v1
+□ README.md        — 실행 방법 + "We do not generate full video" 아키텍처 설명
+□ analysis.md      — 레퍼런스 분석 (cut rhythm, pacing 수치 포함)
+□ retro.md         — 가설, 막힌 지점, 개선점
+□ harness.yaml
+□ templates/       — 4 스테이지 × v1
 □ properties/      — registry + preset + custom
+□ schemas/         — 4개 스키마
 □ eval/            — runner + fixtures
-□ data/*.json      — 중간 산출물 예시 (style_profile, scene_script)
+□ data/*.json      — 중간 산출물 (scene_grammar.json 필수)
 □ outputs/*.mp4    — 생성 영상 2편 이상
-□ outputs/prompts.md — 사용 프롬프트 원문
+□ outputs/prompts.md
 ```
