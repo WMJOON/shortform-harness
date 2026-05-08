@@ -35,10 +35,10 @@ def score(measurements: dict) -> dict:
         dim_score = _score_dimension(criteria, dim_vals)
         dim_scores[dim_name] = {"score": dim_score, "weight": weight, "weighted": dim_score * weight}
 
+    # dim_score는 이미 0~10 범위 → weighted average만 계산
     total = sum(v["weighted"] for v in dim_scores.values())
-    # 10점 만점으로 정규화
     total_weight = sum(v["weight"] for v in dim_scores.values())
-    normalized = (total / total_weight) * 10 if total_weight > 0 else 0.0
+    normalized = total / total_weight if total_weight > 0 else 0.0
 
     return {
         "total": round(normalized, 2),

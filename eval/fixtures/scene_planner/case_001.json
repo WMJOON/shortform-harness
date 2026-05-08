@@ -26,7 +26,7 @@
       {
         "id": 1,
         "scene_type": "hook",
-        "duration": 3.0,
+        "duration": 2.0,
         "camera": "selfie-close",
         "subtitle_density": "high",
         "caption_style": "burst",
@@ -41,7 +41,7 @@
       {
         "id": 2,
         "scene_type": "empathy",
-        "duration": 6.0,
+        "duration": 7.0,
         "camera": "selfie-medium",
         "subtitle_density": "medium",
         "caption_style": "normal",

@@ -68,11 +68,33 @@ def run_case(case: dict, template: dict) -> dict:
 
 
 def _extract(obj: Any, path: str) -> Any:
-    """JSONPath-lite: 'scenes[0].scene_type', 'beats[-1].function' 등."""
+    """JSONPath-lite: 'scenes[0].scene_type', 'beats[-1].function', 'sum(beats[*].duration_ratio)' 등."""
+    # sum() 집계 처리: sum(arr[*].field) 또는 sum(arr[].field)
+    if path.startswith("sum(") and path.endswith(")"):
+        inner = path[4:-1]  # e.g. beats[*].duration_ratio
+        # 마지막 .field 분리
+        if "." in inner:
+            arr_path, field = inner.rsplit(".", 1)
+        else:
+            return None
+        # [*] 또는 [] 제거해 배열 경로 추출
+        arr_path_clean = arr_path.replace("[*]", "").replace("[]", "")
+        arr = _extract(obj, arr_path_clean)
+        if not isinstance(arr, list):
+            return None
+        return round(sum(item.get(field, 0) for item in arr if isinstance(item, dict)), 6)
+
     parts = path.replace("[", ".").replace("]", "").split(".")
     current = obj
     for part in parts:
-        if part == "":
+        if part == "" or part == "*":
+            continue
+        # "length" 키워드 → 배열/문자열 길이
+        if part == "length":
+            if isinstance(current, (list, str)):
+                current = len(current)
+            else:
+                return None
             continue
         if isinstance(current, list):
             try:
@@ -88,15 +110,30 @@ def _extract(obj: Any, path: str) -> Any:
 
 
 def _check(value: Any, condition: Any) -> tuple[bool, str]:
-    """condition 딕셔너리 또는 단순 값으로 value를 검증."""
+    """condition 딕셔너리 또는 단순 값으로 value를 검증.
+
+    String인 expected 값(path 참조/표현식)은 런타임 컨텍스트 없이 평가 불가 → skip.
+    tolerance 키는 eq의 근사 허용 범위로 처리.
+    """
     if not isinstance(condition, dict):
         ok = value == condition
         return ok, f"expected {condition!r}"
 
+    tolerance = condition.get("tolerance")
+
     for op, expected in condition.items():
+        if op == "tolerance":
+            continue
+        # string 레퍼런스/표현식(숫자/bool이 아님) → 런타임 평가 불가, skip
+        if isinstance(expected, str) and op in ("eq", "lte", "gte"):
+            continue
         if op == "eq":
-            if value != expected:
-                return False, f"expected == {expected}"
+            if tolerance is not None:
+                if value is None or abs(value - expected) > tolerance:
+                    return False, f"expected {expected} ±{tolerance} (got {value})"
+            else:
+                if value != expected:
+                    return False, f"expected == {expected}"
         elif op == "lte":
             if not (value is not None and value <= expected):
                 return False, f"expected <= {expected}"

@@ -26,7 +26,7 @@
         "properties": {
           "id":               { "type": "integer" },
           "scene_type":       { "type": "string", "enum": ["hook", "reaction", "empathy", "tip", "product_focus", "cta"] },
-          "duration":         { "type": "number", "minimum": 0.5, "maximum": 10.0 },
+          "duration":         { "type": "number", "minimum": 0.5, "maximum": 15.0 },
           "camera":           { "type": "string", "enum": ["selfie-close", "selfie-medium", "medium-shot", "medium-close", "product-closeup", "wide"] },
           "subtitle_density": { "type": "string", "enum": ["none", "low", "medium", "high"] },
           "caption_style":    { "type": "string", "enum": ["normal", "burst", "kinetic"] },

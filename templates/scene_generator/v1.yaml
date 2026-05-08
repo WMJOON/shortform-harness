@@ -62,6 +62,6 @@ eval_cases:
     input_fixture: "eval/fixtures/scene_generator/case_001.json"
     expected:
       "backend": { not_empty: true }
-      "prompt": { contains: "consistency_anchors.character.description" }
+      "prompt": { contains: "Korean woman" }
       "aspect_ratio": "9:16"
       "scene_id": { not_empty: true }
