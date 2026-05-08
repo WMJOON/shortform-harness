@@ -1238,16 +1238,247 @@ shortform-harness/
 
 ---
 
-## 11. 구현 우선순위 (Cut-line)
+## 11. 인터페이스 설계
+
+### 11-1. CLI — 명령어 구조
+
+```bash
+harness [command] [subcommand] [args] [flags]
+```
+
+**run** — 파이프라인 실행
+
+```bash
+# 기본 실행
+harness run "썸남 꼬시는 뷰티 루틴"
+
+# 커스텀 스타일 지정
+harness run "..." --preset lifestyle_kr --custom amyglamy
+
+# 특정 스테이지부터 재개
+harness run "..." --resume run_20260508_001
+harness run "..." --from-stage scene_generator
+
+# 씬 단독 재생성
+harness run --patch scene 3 --run run_20260508_001
+
+# 드라이런 (scene_grammar까지만 생성, 영상 생성 안 함)
+harness run "..." --dry-run
+```
+
+**registry** — Prompt Registry 관리
+
+```bash
+harness registry list                                        # 전체 목록
+harness registry list --stage scene_planner --tags lifestyle_kr
+harness registry show sp_fav_003                             # 상세 보기
+harness registry use sp_fav_003                              # 다음 실행에 적용
+harness registry save --run run_001 --stage scene_planner \
+  --score 8.5 --tags lifestyle_kr ppl                        # 수동 저장
+harness registry delete sp_fav_003
+```
+
+**runs** — Run 이력 관리
+
+```bash
+harness runs list                                            # 전체 Run 목록
+harness runs show run_20260508_001                           # 상세 상태
+harness runs resume run_20260508_001                         # 중단된 Run 재개
+harness runs diff run_001 run_002                            # 두 Run 비교
+```
+
+**override** — Stage Override
+
+```bash
+harness override set scene_planner data/custom/my_grammar.json
+harness override clear scene_planner
+harness override list                                        # 현재 override 목록
+```
+
+**eval** — 템플릿 검증
+
+```bash
+harness eval run                                             # 전체 eval 실행
+harness eval run --stage scene_planner                       # 특정 스테이지만
+harness eval show                                            # 마지막 결과 출력
+```
+
+**chat** — Orchestrator와 자연어 대화 (대화형 모드)
+
+```bash
+harness chat
+harness chat --run run_20260508_001                          # 기존 Run 컨텍스트
+```
+
+---
+
+### 11-2. TUI — 실행 중 진행 화면
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  shortform-harness  ▸  run_20260508_001                      ║
+╠══════════════════════════════════════════════════════════════╣
+║  Prompt  "썸남 꼬시는 뷰티 루틴"                               ║
+║  Style   @AmyGlamy  ·  lifestyle_kr                          ║
+║  Target  38s  ·  9:16  ·  Kling + ElevenLabs                 ║
+╠══════════════════════════════════════════════════════════════╣
+║  PIPELINE                                                    ║
+║                                                              ║
+║  ✓  Story Parser       beat_structure.json        2.1s       ║
+║     └─ registry: sp_fav_003 (score 8.7)                      ║
+║  ✓  Scene Planner      scene_grammar.json         3.4s       ║
+║  ▶  Scene Generator    ████████████░░░░  4 / 5               ║
+║     ├─ scene 1  hook           ✓  0.92                       ║
+║     ├─ scene 2  reaction       ✓  0.89                       ║
+║     ├─ scene 3  tip     [×1]   ✓  0.88  (retry 1)           ║
+║     ├─ scene 4  product_focus  ✓  0.87                       ║
+║     └─ scene 5  cta            ⟳ generating...               ║
+║  ○  Subtitle Generator                                       ║
+║  ○  Pacing Engine                                            ║
+║  ○  Video Composer                                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Override   scene_planner → (none)                           ║
+║  Elapsed    00:01:43   ETA  ~00:02:10                        ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+완료 화면:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  shortform-harness  ▸  run_20260508_001  ·  DONE             ║
+╠══════════════════════════════════════════════════════════════╣
+║  ✓  Story Parser        2.1s                                 ║
+║  ✓  Scene Planner       3.4s                                 ║
+║  ✓  Scene Generator    84.2s  (1 retry)                      ║
+║  ✓  Subtitle Generator  6.1s                                 ║
+║  ✓  Pacing Engine       0.3s                                 ║
+║  ✓  Video Composer     12.8s                                 ║
+╠══════════════════════════════════════════════════════════════╣
+║  Output    outputs/run_20260508_001/video.mp4                ║
+║  Duration  38.2s  ·  1080×1920                               ║
+╠══════════════════════════════════════════════════════════════╣
+║  Consistency                                                 ║
+║  character.visual   ████████████████████  avg 0.89  PASS     ║
+║  voice.identity     ████████████████████  exact     PASS     ║
+║  voice.energy       █████████████████░░░  var 0.12  PASS     ║
+║  subtitle.style     ████████████████████  exact     PASS     ║
+║  pacing.rhythm      ██████████████████░░  std 0.11  PASS     ║
+╠══════════════════════════════════════════════════════════════╣
+║  APO Score  7.8 / 10.0                                       ║
+║  → Save to registry? (y/n)  _                                ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+Registry 목록 화면 (`harness registry list`):
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Prompt Registry  ·  scene_planner  ·  lifestyle_kr         │
+├────────────┬───────┬──────┬──────────────────────┬──────────┤
+│  ID        │ Score │ Ver  │ Tags                 │ Created  │
+├────────────┼───────┼──────┼──────────────────────┼──────────┤
+│ sp_fav_003 │  8.7  │  v1  │ lifestyle_kr hook_q  │ 05-08    │
+│ sp_fav_001 │  8.2  │  v1  │ lifestyle_kr ppl     │ 05-07    │
+│ sp_fav_005 │  7.9  │  v2  │ lifestyle_kr reaction│ 05-08    │
+└────────────┴───────┴──────┴──────────────────────┴──────────┘
+  use: harness registry use <id>
+```
+
+---
+
+### 11-3. Orchestrator Chat — 대화형 인터페이스
+
+```
+$ harness chat
+
+┌─────────────────────────────────────────────────────┐
+│  Orchestrator  ·  shortform-harness                 │
+│  이전 run: run_20260508_001 (scene_generator 중단)  │
+└─────────────────────────────────────────────────────┘
+
+Orch  이전 실행 run_20260508_001이 scene_generator에서 중단됐습니다.
+      재개할까요, 새로 시작할까요?
+
+You   새로 만들어줘. 이번엔 스킨케어 루틴으로
+
+Orch  story_parser에 sp_fav_003 (score 8.7 / lifestyle_kr) 있습니다.
+      사용할까요?
+
+You   응 써
+
+Orch  [run_20260508_002 시작]
+      ✓ Story Parser    — sp_fav_003 사용 (2.1s)
+      ✓ Scene Planner   — 생성 (3.4s)
+      ▶ Scene Generator — 5개 씬 병렬 생성 중...
+
+      ✓ 완료. outputs/run_002/video.mp4 (38.2s)
+      APO Score: 8.1 / 10.0 — 레지스트리 저장할까요?
+
+You   응. 태그는 lifestyle_kr skincare
+
+Orch  ✓ sp_fav_007 (score 8.1) 저장 완료
+      태그: lifestyle_kr, skincare
+
+---
+
+You   씬 3 표정이 너무 어두워, 다시 만들어줘
+
+Orch  scene 3 (tip) 재생성 중...
+      이전 consistency: 0.88 → 새로 생성 중...
+      ✓ 새 score: 0.91  (visual_prompt 조정: "밝은 표정, 눈 맞춤 강조")
+      영상 재합성 중... ✓
+      outputs/run_002/video_v2.mp4
+
+---
+
+You   scene grammar는 이번 거 고정하고 내용만 바꿔서 3개 더 만들어줘
+
+Orch  run_002의 scene_grammar를 override로 고정합니다.
+      ✓ override set: scene_planner → run_002/scene_grammar.json
+
+      3개 배치 실행합니다. 프롬프트를 입력해 주세요.
+
+You   1) 탈모 케어 제품 PPL
+      2) 선크림 데일리 루틴
+      3) 수면 케어 루틴
+
+Orch  [run_003, run_004, run_005 병렬 시작]
+      run_003 "탈모 케어"    ▶ scene_generator 진행 중
+      run_004 "선크림"       ▶ scene_planner 진행 중
+      run_005 "수면 케어"    ▶ story_parser 완료
+
+      ✓ run_003 → video_003.mp4  (score 7.9)
+      ✓ run_004 → video_004.mp4  (score 8.3)
+      ✓ run_005 → video_005.mp4  (score 8.0)
+```
+
+---
+
+### 11-4. 구현 라이브러리
+
+| 인터페이스 | 라이브러리 | 이유 |
+|-----------|-----------|------|
+| CLI 파싱 | `typer` | 타입 힌트 기반, 자동 help 생성 |
+| TUI / 진행 화면 | `rich` | progress bar, panel, table, live |
+| Orchestrator Chat | `Claude API` + REPL loop | 오케스트레이터 에이전트 직결 |
+| 배치 병렬 실행 | `asyncio` + `httpx` | 씬 생성 병렬 API 호출 |
+
+---
+
+## 12. 구현 우선순위 (Cut-line)
 
 | 우선순위 | 유지 | 포기 가능 |
 |---------|------|----------|
 | P0 | `scene_grammar.schema.json` 스키마 정의 | — |
 | P0 | `templates/scene_planner/v1.yaml` + eval fixture | v2 이상 |
 | P0 | `pacing_rules.json` + `pacing_engine.py` | Remotion (ffmpeg로 대체) |
+| P0 | CLI `harness run` + TUI 진행 화면 (`rich`) | chat 모드 |
 | P1 | `properties/registry.yaml` + `custom/amyglamy.yaml` | — |
 | P1 | `pipeline/scene_generator.py` (Kling or GPT Image 2) | 고화질 |
+| P1 | `registry/` + `harness registry` 명령어 | score 자동 저장 |
 | P2 | 영상 2편 (동일 시스템, 다른 프롬프트) | 영상 품질 |
+| P2 | `harness chat` orchestrator 대화 모드 | 배치 병렬 실행 |
 | P3 | `apo/scorer.py` + `consistency/checker.py` | `apo/optimizer.py` |
 
 ---
