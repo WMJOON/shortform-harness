@@ -1,0 +1,130 @@
+properties:
+
+  # ── 후크 ──────────────────────────────────────────────────────
+  hook.position_sec:
+    type: number
+    description: "후크 등장 시점 (초)"
+    extract_method: whisper_timestamp
+    maps_to: pacing_rules.hook_max_duration
+    default_eval: { lte: 3.0 }
+    apo_weight: high
+
+  hook.type:
+    type: enum
+    values: [question, teaser, shock, list_preview, statement]
+    extract_method: llm_classify
+    maps_to: scene_grammar.scenes[0].scene_type_variant
+    default_eval: required
+    apo_weight: high
+
+  # ── 컷 리듬 ───────────────────────────────────────────────────
+  cuts.avg_duration_sec:
+    type: number
+    extract_method: ffmpeg_scene_detect
+    maps_to: pacing_rules.avg_scene_length
+    default_eval: { gte: 1.0, lte: 5.0 }
+    apo_weight: high
+
+  cuts.rhythm_pattern:
+    type: enum
+    values: [fast-open, slow-open, constant, fast-close, accelerating]
+    extract_method: llm_classify
+    maps_to: pacing_rules.energy_curve
+    apo_weight: high
+
+  cuts.zoom_probability:
+    type: number
+    extract_method: visual_analysis
+    maps_to: pacing_rules.zoom_probability
+    default_eval: { gte: 0.0, lte: 1.0 }
+    apo_weight: medium
+
+  cuts.smash_cut_probability:
+    type: number
+    extract_method: visual_analysis
+    maps_to: pacing_rules.smash_cut_probability
+    apo_weight: medium
+
+  # ── 자막 ──────────────────────────────────────────────────────
+  subtitle.sync_tightness:
+    type: enum
+    values: [tight, loose, none]
+    extract_method: whisper_align
+    maps_to: pacing_rules.caption_interval_ms
+    apo_weight: medium
+
+  subtitle.emphasis_style:
+    type: enum
+    values: [color_change, size_change, bold, underline, none]
+    extract_method: vision_llm
+    maps_to: scene_grammar.consistency_anchors.subtitle.emphasis_color
+    apo_weight: low
+
+  subtitle.position:
+    type: enum
+    values: [top, center, bottom, dynamic]
+    extract_method: vision_llm
+    maps_to: scene_grammar.consistency_anchors.subtitle.position
+    apo_weight: low
+
+  subtitle.burst_on_emphasis:
+    type: boolean
+    extract_method: llm_classify
+    maps_to: pacing_rules.subtitle_burst_on_emphasis
+    apo_weight: medium
+
+  # ── 오디오 / BGM ──────────────────────────────────────────────
+  bgm.entry_sec:
+    type: number
+    extract_method: audio_analysis
+    apo_weight: low
+
+  bgm.duck_ratio:
+    type: number
+    extract_method: audio_analysis
+    maps_to: pacing_rules.bgm_duck_ratio
+    apo_weight: low
+
+  bgm.genre:
+    type: string
+    extract_method: llm_classify
+    apo_weight: low
+
+  # ── 내러티브 ──────────────────────────────────────────────────
+  narrative.target_persona:
+    type: string
+    description: "타겟 직접 호칭 (girly, 언니들 등)"
+    extract_method: llm_extract
+    maps_to: scene_grammar.narrative.target_persona
+    apo_weight: high
+
+  narrative.ppl_present:
+    type: boolean
+    extract_method: llm_classify
+    maps_to: "scene_grammar.scenes[].scene_type (product_focus 포함 여부)"
+    apo_weight: medium
+
+  narrative.ppl_bridge_phrase:
+    type: string
+    extract_method: llm_extract
+    apo_weight: medium
+
+  narrative.segment_ratio:
+    type: object
+    description: "hook/reaction/tip/product_focus/cta 비율"
+    extract_method: llm_segment
+    maps_to: "scene_grammar.scenes[].duration 배분"
+    apo_weight: medium
+
+  narrative.emotional_arc:
+    type: string
+    description: "씬 간 감정 흐름"
+    extract_method: llm_classify
+    maps_to: scene_grammar.narrative.emotional_arc
+    apo_weight: medium
+
+  # ── 확장 슬롯 ─────────────────────────────────────────────────
+  custom.*:
+    type: any
+    extract_method: user_defined
+    apo_weight: user_defined

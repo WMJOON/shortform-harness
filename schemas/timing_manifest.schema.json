@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TimingManifest",
+  "description": "Pacing Engine 출력 — Video Composer 입력",
+  "type": "object",
+  "required": ["total_duration_sec", "scenes", "bgm_track", "bgm_duck_points"],
+  "properties": {
+    "total_duration_sec": { "type": "number" },
+    "bgm_track":          { "type": "string" },
+    "bgm_duck_points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start_sec", "end_sec", "ratio"],
+        "properties": {
+          "start_sec": { "type": "number" },
+          "end_sec":   { "type": "number" },
+          "ratio":     { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "start_sec", "end_sec", "transition_out", "subtitle_timing"],
+        "properties": {
+          "id":             { "type": "integer" },
+          "start_sec":      { "type": "number" },
+          "end_sec":        { "type": "number" },
+          "zoom":           { "type": "boolean" },
+          "transition_out": { "type": "string" },
+          "bgm":            { "type": "object" },
+          "subtitle_timing": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text", "start_ms", "end_ms"],
+              "properties": {
+                "text":     { "type": "string" },
+                "start_ms": { "type": "integer" },
+                "end_ms":   { "type": "integer" },
+                "emphasis": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

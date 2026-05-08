@@ -1,0 +1,127 @@
+{
+  "input": {
+    "beat_structure": {
+      "total_duration_sec": 30,
+      "target_persona": "girly",
+      "emotional_arc": "curiosity→empathy→solution→desire→action",
+      "beats": [
+        {"id": 1, "function": "hook",          "duration_ratio": 0.10, "energy": "high"},
+        {"id": 2, "function": "empathy",        "duration_ratio": 0.20, "energy": "medium"},
+        {"id": 3, "function": "tip",            "duration_ratio": 0.35, "energy": "medium"},
+        {"id": 4, "function": "product_focus",  "duration_ratio": 0.20, "energy": "medium"},
+        {"id": 5, "function": "cta",            "duration_ratio": 0.15, "energy": "high"}
+      ]
+    }
+  },
+  "expected_output": {
+    "prompt": "피부 트러블 심한 언니들을 위한 진정 스킨케어 루틴",
+    "narrative": {
+      "concept": "트러블 피부 진정 스킨케어 루틴",
+      "beat_count": 5,
+      "total_duration_sec": 30,
+      "target_persona": "girly",
+      "emotional_arc": "curiosity→empathy→solution→desire→action"
+    },
+    "scenes": [
+      {
+        "id": 1,
+        "scene_type": "hook",
+        "duration": 3.0,
+        "camera": "selfie-close",
+        "subtitle_density": "high",
+        "caption_style": "burst",
+        "emotion": "curious",
+        "voiceover": "트러블 때문에 맨날 쿨링패드만 붙이고 있는 girly 있어?",
+        "visual_prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Selfie close-up, face fills 70% frame, surprised-questioning expression, slightly raised eyebrow, looking directly at camera. High energy hook moment.",
+        "zoom": false,
+        "transition_in": "cut",
+        "transition_out": "smash-cut",
+        "bgm_cue": "fade_in"
+      },
+      {
+        "id": 2,
+        "scene_type": "empathy",
+        "duration": 6.0,
+        "camera": "selfie-medium",
+        "subtitle_density": "medium",
+        "caption_style": "normal",
+        "emotion": "empathetic",
+        "voiceover": "나도 작년에 턱선 트러블이 너무 심해서 진짜 외출도 못했거든",
+        "visual_prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Medium selfie, shoulders visible, empathetic soft expression, gentle nod, relatable confession energy.",
+        "zoom": false,
+        "transition_in": "cut",
+        "transition_out": "cut",
+        "bgm_cue": "continue"
+      },
+      {
+        "id": 3,
+        "scene_type": "tip",
+        "duration": 10.5,
+        "camera": "medium-shot",
+        "subtitle_density": "high",
+        "caption_style": "kinetic",
+        "emotion": "informative",
+        "voiceover": "그래서 찾은 진정 루틴 3단계. 첫째 저자극 클렌징, 둘째 시카 토너, 셋째 무향 크림",
+        "visual_prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Medium shot, counting on fingers, confident teaching pose, clean and authoritative tip-sharing energy.",
+        "zoom": true,
+        "transition_in": "cut",
+        "transition_out": "cut",
+        "bgm_cue": "energy_up"
+      },
+      {
+        "id": 4,
+        "scene_type": "product_focus",
+        "duration": 6.0,
+        "camera": "product-closeup",
+        "subtitle_density": "medium",
+        "caption_style": "normal",
+        "emotion": "aspirational",
+        "voiceover": "요즘 내가 쓰는 거 이거야. 진짜 피부 진정에 미쳤음",
+        "visual_prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Macro close-up product shot, clean background, warm lighting, premium aspirational feel, product held in clean hands.",
+        "zoom": false,
+        "transition_in": "cut",
+        "transition_out": "cut",
+        "bgm_cue": "duck"
+      },
+      {
+        "id": 5,
+        "scene_type": "cta",
+        "duration": 4.5,
+        "camera": "selfie-close",
+        "subtitle_density": "high",
+        "caption_style": "burst",
+        "emotion": "warm",
+        "voiceover": "도움됐으면 저장해두고 팔로우도 부탁해요",
+        "visual_prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Tight close-up selfie, direct warm gaze to camera, inviting smile, pointing gesture toward viewer.",
+        "zoom": false,
+        "transition_in": "cut",
+        "transition_out": "fade",
+        "bgm_cue": "fade_out"
+      }
+    ],
+    "consistency_anchors": {
+      "character": {
+        "description": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression",
+        "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality"
+      },
+      "background": {
+        "style": "modern minimalist Korean apartment interior",
+        "description": "clean white walls, soft natural light, minimal decor",
+        "color_palette": ["#FAFAFA", "#F5E6D3", "#D4C5B0"]
+      },
+      "voice": {
+        "tts_voice_id": "elevenlabs_kr_female_01",
+        "target_energy": "medium-high",
+        "speed_wpm": 180
+      },
+      "subtitle": {
+        "font": "Noto Sans KR Bold",
+        "color": "#FFFFFF",
+        "stroke": "#000000",
+        "position": "bottom",
+        "emphasis_color": "#FFE566"
+      }
+    },
+    "hashtags": ["#스킨케어", "#트러블피부", "#진정루틴", "#뷰티팁"]
+  }
+}

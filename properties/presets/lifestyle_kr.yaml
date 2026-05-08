@@ -1,0 +1,43 @@
+name: "한국 라이프스타일 숏폼"
+description: "K-beauty / K-lifestyle 숏폼 기본 preset — AmyGlamy 유형 참고"
+
+active_properties:
+  - hook.position_sec
+  - hook.type
+  - cuts.avg_duration_sec
+  - cuts.rhythm_pattern
+  - cuts.zoom_probability
+  - cuts.smash_cut_probability
+  - subtitle.sync_tightness
+  - subtitle.emphasis_style
+  - subtitle.burst_on_emphasis
+  - bgm.entry_sec
+  - bgm.duck_ratio
+  - narrative.target_persona
+  - narrative.ppl_present
+  - narrative.ppl_bridge_phrase
+  - narrative.segment_ratio
+  - narrative.emotional_arc
+
+weights:
+  hook.position_sec:            0.15
+  hook.type:                    0.10
+  cuts.avg_duration_sec:        0.15
+  cuts.rhythm_pattern:          0.10
+  cuts.zoom_probability:        0.05
+  subtitle.sync_tightness:      0.10
+  subtitle.burst_on_emphasis:   0.05
+  narrative.target_persona:     0.12
+  narrative.emotional_arc:      0.08
+  narrative.segment_ratio:      0.10
+
+# preset 기본값 (custom override 전)
+defaults:
+  hook.position_sec:            2.5
+  cuts.avg_duration_sec:        2.0
+  cuts.zoom_probability:        0.4
+  cuts.smash_cut_probability:   0.3
+  cuts.rhythm_pattern:          fast-open
+  subtitle.sync_tightness:      tight
+  subtitle.burst_on_emphasis:   true
+  bgm.duck_ratio:               0.3

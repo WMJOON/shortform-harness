@@ -1,0 +1,60 @@
+id: story-parser-v1
+stage: story_parser
+version: "1.0"
+description: "사용자 프롬프트 → beat structure 추출"
+
+input:
+  user_prompt:
+    type: string
+    description: "영상 스토리·컨셉 (자유 형식)"
+  target_persona:
+    type: string
+    description: "타겟 직접 호칭 (style_profile에서 주입)"
+  total_duration_sec:
+    type: number
+    description: "목표 영상 길이"
+  emotional_arc_pattern:
+    type: string
+    description: "style_profile.narrative.emotional_arc"
+
+output:
+  schema: "schemas/beat_structure.schema.json"
+  format: json
+
+system: |
+  You are a shortform video narrative designer specialized in Korean lifestyle content.
+  Decompose the user's concept into 4-6 emotional beats that drive viewer attention.
+  Each beat must have a clear emotional function and contribute to the pacing arc.
+
+  Rules:
+  - First beat MUST be "hook" with energy "high"
+  - Last beat MUST be "cta"
+  - duration_ratio values must sum to exactly 1.0
+  - Keep beats tight — shortform attention span is short
+
+user: |
+  Create a beat structure for this shortform video concept.
+
+  ## User Concept
+  {{ user_prompt }}
+
+  ## Target Persona
+  {{ target_persona }}
+
+  ## Total Duration
+  {{ total_duration_sec }}s
+
+  ## Emotional Arc Pattern (reference style)
+  {{ emotional_arc_pattern }}
+
+  Return a JSON object matching the beat_structure schema.
+  duration_ratio values must sum to 1.0.
+
+eval_cases:
+  - id: "sp_case_001"
+    input_fixture: "eval/fixtures/story_parser/case_001.json"
+    expected:
+      "beats[0].function": "hook"
+      "beats[0].energy": "high"
+      "beats[-1].function": "cta"
+      "sum(beats[*].duration_ratio)": { eq: 1.0, tolerance: 0.01 }

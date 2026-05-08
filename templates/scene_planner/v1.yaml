@@ -1,0 +1,72 @@
+id: scene-planner-v1
+stage: scene_planner
+version: "1.0"
+description: "beat structure + style_profile → scene_grammar.json 생성"
+
+input:
+  beat_structure:
+    type: object
+    description: "story_parser 출력"
+  style_profile:
+    type: object
+    description: "레퍼런스 분석 결과"
+  pacing_rules:
+    type: object
+    description: "pacing_rules.json"
+  active_properties:
+    type: object
+    description: "loader.py가 주입 — registry + custom 조합"
+
+output:
+  schema: "schemas/scene_grammar.schema.json"
+  format: json
+
+system: |
+  You are a shortform video scene director specialized in Korean lifestyle content.
+  Convert narrative beats into concrete, self-contained scene grammar.
+
+  Rules:
+  - Each scene is an independent generation unit — visual_prompt must be self-contained
+  - consistency_anchors must appear in EVERY scene's visual_prompt
+  - Hook scene: duration ≤ hook_max_duration from pacing_rules
+  - All scene durations must sum to narrative.total_duration_sec ±0.5s
+  - scene_type must map from beat function:
+      hook → hook
+      empathy → reaction or empathy
+      tip → tip
+      reveal/product_focus → product_focus
+      cta → cta
+  - The output is deterministic assembly instructions, not creative writing
+
+user: |
+  Generate scene grammar from these narrative beats.
+
+  ## Beat Structure
+  {{ beat_structure }}
+
+  ## Style Constraints (must reproduce exactly)
+  - hook_max_duration: {{ pacing_rules.hook_max_duration }}s
+  - avg_scene_length: {{ pacing_rules.avg_scene_length }}s
+  - zoom_probability: {{ pacing_rules.zoom_probability }}
+  - target_persona: {{ style_profile.narrative.target_persona }}
+  - hook.type: {{ style_profile.hook.type }}
+  - ppl_bridge_phrase: {{ style_profile.narrative.ppl_bridge_phrase }}
+
+  ## Consistency Anchors (embed in every visual_prompt)
+  - Character: {{ style_profile.consistency_anchors.character.description }}
+  - Background: {{ style_profile.consistency_anchors.background.description }}
+
+  ## Active Properties
+  {{ active_properties }}
+
+  Return scene_grammar JSON. Validate: scene durations must sum to {{ beat_structure.total_duration_sec }}s.
+
+eval_cases:
+  - id: "spl_case_001"
+    input_fixture: "eval/fixtures/scene_planner/case_001.json"
+    expected:
+      "scenes[0].scene_type": "hook"
+      "scenes[0].duration": { lte: 2.5 }
+      "scenes[-1].scene_type": "cta"
+      "sum(scenes[*].duration)": { eq: "narrative.total_duration_sec", tolerance: 0.5 }
+      "narrative.target_persona": { not_empty: true }

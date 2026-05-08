@@ -1,0 +1,58 @@
+name: "AmyGlamy 스타일"
+description: "@AmyGlamy YouTube Shorts 레퍼런스 기반 override"
+extends: presets/lifestyle_kr.yaml
+
+add_properties:
+  - narrative.direct_address_style
+
+overrides:
+  hook.position_sec:
+    eval: { lte: 2.5 }
+    value: 2.0
+  cuts.avg_duration_sec:
+    eval: { gte: 1.0, lte: 3.0 }
+    value: 1.7
+  cuts.zoom_probability:
+    eval: { gte: 0.3 }
+    value: 0.45
+  cuts.rhythm_pattern:
+    value: fast-open
+  subtitle.burst_on_emphasis:
+    value: true
+  subtitle.sync_tightness:
+    value: tight
+
+custom_properties:
+  narrative.direct_address_style:
+    type: string
+    description: "girly / 언니 / 자기야 등 직접 호칭 패턴"
+    extract_method: llm_extract
+    maps_to: scene_grammar.narrative.target_persona
+    apo_weight: high
+
+# 레퍼런스에서 분석된 style_profile 기본값
+style_profile_defaults:
+  hook:
+    type: question
+  narrative:
+    target_persona: "girly"
+    ppl_bridge_phrase: "요즘 내가 쓰는 거"
+    emotional_arc: "curiosity→empathy→solution→desire→action"
+  consistency_anchors:
+    character:
+      description: "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression"
+      negative_prompt: "ugly, deformed, extra limbs, blurry, low quality"
+    background:
+      style: "modern minimalist Korean apartment interior"
+      description: "clean white walls, soft natural light, minimal decor"
+      color_palette: ["#FAFAFA", "#F5E6D3", "#D4C5B0"]
+    voice:
+      tts_voice_id: elevenlabs_kr_female_01
+      target_energy: medium-high
+      speed_wpm: 180
+    subtitle:
+      font: "Noto Sans KR Bold"
+      color: "#FFFFFF"
+      stroke: "#000000"
+      position: bottom
+      emphasis_color: "#FFE566"

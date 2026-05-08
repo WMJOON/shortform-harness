@@ -1,0 +1,34 @@
+dimensions:
+  hook:
+    weight: 0.25
+    criteria:
+      within_2_5s:      { type: binary }
+      question_format:  { type: binary }
+      target_address:   { type: binary }
+
+  cut_rhythm:
+    weight: 0.25
+    criteria:
+      avg_cut_matches:  { type: range, target: 1.7, tolerance: 0.4 }
+      energy_curve:     { type: scale, range: [0, 10] }
+      zoom_applied:     { type: binary }
+
+  subtitle:
+    weight: 0.20
+    criteria:
+      speech_sync:      { type: scale, range: [0, 10] }
+      burst_on_emphasis: { type: binary }
+
+  ppl_integration:
+    weight: 0.15
+    criteria:
+      natural_bridge:   { type: scale, range: [0, 10] }
+
+  human:
+    weight: 0.15
+    criteria:
+      overall_match:    { type: scale, range: [0, 10] }
+
+scoring:
+  min_pass_score: 7.0
+  apo_trigger_score: 7.5   # 이 점수 이하에서 APO 루프 진입

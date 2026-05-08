@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BeatStructure",
+  "type": "object",
+  "required": ["total_duration_sec", "target_persona", "emotional_arc", "beats"],
+  "properties": {
+    "total_duration_sec": { "type": "number", "minimum": 15, "maximum": 60 },
+    "target_persona": { "type": "string" },
+    "emotional_arc": { "type": "string" },
+    "beats": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["id", "function", "duration_ratio", "energy"],
+        "properties": {
+          "id":             { "type": "integer" },
+          "function":       { "type": "string", "enum": ["hook", "empathy", "tip", "reveal", "product_focus", "cta"] },
+          "duration_ratio": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "energy":         { "type": "string", "enum": ["low", "medium", "high"] },
+          "description":    { "type": "string" }
+        }
+      }
+    }
+  }
+}

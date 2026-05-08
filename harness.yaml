@@ -1,0 +1,64 @@
+version: "0.3"
+
+# Property 설정
+properties:
+  preset: properties/presets/lifestyle_kr.yaml
+  custom: properties/custom/amyglamy.yaml
+
+# 스테이지별 템플릿 버전
+stages:
+  story_parser:
+    active: v1
+    candidates:
+      v1: templates/story_parser/v1.yaml
+
+  scene_planner:
+    active: v1
+    candidates:
+      v1: templates/scene_planner/v1.yaml
+      # v2: templates/scene_planner/v2.yaml  # 개발중
+
+  scene_generator:
+    active: v1
+    candidates:
+      v1: templates/scene_generator/v1.yaml
+
+  subtitle_generator:
+    active: v1
+    candidates:
+      v1: templates/subtitle_generator/v1.yaml
+
+  pacing_engine:
+    backend: rule_based          # LLM 아님 — pacing_rules.json 직접 적용
+    pacing_rules:
+      hook_max_duration:        2.5
+      avg_scene_length:         1.7
+      zoom_probability:         0.45
+      smash_cut_probability:    0.30
+      energy_curve:             fast-open
+      caption_interval_ms:      200
+      subtitle_burst_on_emphasis: true
+      bgm_duck_ratio:           0.3
+
+  video_composer:
+    backend: ffmpeg              # or remotion
+    output_format: mp4
+    resolution: "1080x1920"     # 9:16
+    fps: 30
+
+# 생성 백엔드
+generation:
+  visual: kling                  # kling | gpt_image_2 | runway
+  tts: elevenlabs
+  tts_voice_id: elevenlabs_kr_female_01
+
+# Eval
+eval:
+  auto_run: true
+  fail_on_schema_error: true
+
+# APO
+apo:
+  enabled: true
+  min_score_delta: 0.15
+  hitl_required: true
