@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: shortform-harness
+Version: 0.1.0
+Summary: Shortform video generation harness — style-consistent Korean lifestyle content
+Requires-Python: >=3.9
+Requires-Dist: anthropic>=0.25
+Requires-Dist: openai>=1.30
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: typer>=0.12
+Requires-Dist: rich>=13
+Requires-Dist: pyyaml>=6
+Requires-Dist: jsonschema>=4
+Requires-Dist: Pillow>=10
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: ruff>=0.4; extra == "dev"

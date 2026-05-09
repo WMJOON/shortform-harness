@@ -1,0 +1,12 @@
+anthropic>=0.25
+openai>=1.30
+python-dotenv>=1.0
+typer>=0.12
+rich>=13
+pyyaml>=6
+jsonschema>=4
+Pillow>=10
+
+[dev]
+pytest>=8
+ruff>=0.4
