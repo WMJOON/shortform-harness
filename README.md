@@ -39,8 +39,8 @@
 ┌──────────┐  ┌──────────────────┐
 │ 3. Scene │  │ 4. Subtitle      │   병렬 실행
 │ Generator│  │    Generator     │
-│(Kling /  │  │ (ElevenLabs TTS) │
-│ GPT-img2)│  └──────────────────┘
+│(GPT-img2 │  │ (ElevenLabs TTS) │
+│ / Kling) │  └──────────────────┘
 └──────────┘
     ↓ scene_assets/ + subtitle_tracks/
     └──────┬──────────────────┘
@@ -81,15 +81,32 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-환경 변수 설정:
+### 환경 변수
 
 ```bash
-export ANTHROPIC_API_KEY=sk-...
-export ELEVENLABS_API_KEY=...   # TTS 사용 시
-export KLING_API_KEY=...        # 영상 생성 시
+cp .env.example .env
+# .env 열어서 필요한 키 입력
 ```
 
+| 변수 | 용도 | 필수 여부 |
+|------|------|----------|
+| `ANTHROPIC_API_KEY` | Stage 1·2 LLM (스크립트 직접 실행 시) | Claude Code 스킬 사용 시 불필요 |
+| `OPENAI_API_KEY` | GPT Image 2 비주얼 생성 | `visual: gpt_image_2` 시 필요 |
+| `KLING_API_KEY` | Kling 영상 생성 | `visual: kling` 시 필요 |
+| `ELEVENLABS_API_KEY` | 한국어 TTS | TTS 사용 시 필요 |
+
 ### 실행
+
+#### Claude Code 스킬 (API 키 불필요)
+
+```
+/harness-run "피부 트러블 진정 루틴"
+/harness-run "해외여행 짐 줄이는 법"
+```
+
+Stage 1·2는 Claude Code가 직접 생성하고, Stage 5·6은 스크립트로 자동 실행한다.
+
+#### CLI
 
 ```bash
 # 기본 실행
@@ -111,6 +128,14 @@ harness run "..." --from-stage scene_generator
 harness run "뷰티 루틴" --chat
 ```
 
+#### Placeholder 영상 직접 생성 (비주얼 API 없이)
+
+```bash
+python3 scripts/make_placeholder_video.py run_20260509_001
+```
+
+PIL 컬러 프레임 + ffmpeg로 1080×1920 30s 영상을 즉시 생성한다.
+
 ### Prompt Registry
 
 ```bash
@@ -131,18 +156,29 @@ harness eval --stage story_parser    # 특정 스테이지만
 
 ```
 shortform-harness/
+├── .claude/
+│   └── skills/
+│       └── harness-run/
+│           └── SKILL.md            ← Claude Code 스킬 정의 (API 키 없이 파이프라인 실행)
+│
+├── .env.example                    ← 환경 변수 템플릿 (cp → .env)
 ├── harness.yaml                    ← 스테이징 설정 (활성 템플릿 + 백엔드)
+├── pyproject.toml
+├── run.sh
 │
 ├── pipeline/                       ← 6단계 파이프라인 구현
-│   ├── llm.py                      ← 공유 LLM 헬퍼 (call_llm, render_messages)
+│   ├── llm.py                      ← 공유 LLM 헬퍼 (call_llm, render_messages, load_dotenv)
 │   ├── constants.py                ← BeatFunction / SceneType / SubtitleDensity
 │   ├── loader.py                   ← harness.yaml → 활성 템플릿 + properties 로드
 │   ├── story_parser.py             ← Stage 1: prompt → beat_structure
 │   ├── scene_planner.py            ← Stage 2: beats → scene_grammar
-│   ├── scene_generator.py          ← Stage 3: 씬별 병렬 비주얼 생성
+│   ├── scene_generator.py          ← Stage 3: 씬별 병렬 비주얼 생성 (GPT Image 2 / Kling)
 │   ├── subtitle_generator.py       ← Stage 4: voiceover → subtitle_timing
 │   ├── pacing_engine.py            ← Stage 5: rule-based timing_manifest (LLM 없음)
 │   └── video_composer.py           ← Stage 6: ffmpeg 합성
+│
+├── scripts/
+│   └── make_placeholder_video.py   ← PIL + ffmpeg placeholder 영상 생성 (API 불필요)
 │
 ├── orchestrator/
 │   ├── agent.py                    ← tool_use 루프 오케스트레이터
@@ -169,6 +205,10 @@ shortform-harness/
 ├── eval/
 │   ├── runner.py                   ← eval_cases 실행기
 │   └── fixtures/                   ← 스테이지별 입출력 fixture
+│       ├── story_parser/case_001.json
+│       ├── scene_planner/case_001.json
+│       ├── scene_generator/case_001.json
+│       └── subtitle_generator/case_001.json
 │
 ├── consistency/
 │   ├── checker.py                  ← PI001-PI006 + property 일관성 검사
@@ -177,11 +217,33 @@ shortform-harness/
 │
 ├── apo/
 │   ├── scorer.py                   ← rubric 가중 채점 (0~10점)
-│   └── optimizer.py                ← meta-prompt → 후보 템플릿 생성
+│   ├── optimizer.py                ← meta-prompt → 후보 템플릿 생성
+│   ├── candidates/                 ← APO 후보 템플릿 저장
+│   └── history/                    ← 채점 이력
 │
 ├── feedback/rubric.yaml            ← 5개 평가 차원 (hook·cut_rhythm·subtitle·ppl·human)
-├── registry/prompts/entries.jsonl  ← 저장된 프롬프트 목록
-├── data/style_profile.json         ← 레퍼런스 분석 결과 (재사용)
+│
+├── registry/
+│   ├── prompts/entries.jsonl       ← 저장된 프롬프트 목록
+│   └── samples/                   ← 레퍼런스 샘플
+│
+├── data/
+│   ├── style_profile.json          ← 레퍼런스 분석 결과
+│   ├── custom/                     ← 커스텀 데이터
+│   └── runs/                       ← 런별 중간 산출물
+│       ├── run_20260509_001/       ← 스킨케어 루틴 테스트 런
+│       │   ├── beat_structure.json
+│       │   ├── scene_grammar.json
+│       │   └── timing_manifest.json
+│       └── run_20260509_002/       ← 여행 꿀팁 테스트 런
+│           ├── beat_structure.json
+│           ├── scene_grammar.json
+│           └── timing_manifest.json
+│
+├── outputs/                        ← 최종 영상 출력 (gitignore)
+│   ├── run_20260509_001.mp4        ← 스킨케어 루틴 (30s, 1080×1920)
+│   └── run_20260509_002.mp4        ← 여행 꿀팁 (30s, 1080×1920)
+│
 └── cli.py                          ← typer CLI 진입점
 ```
 
@@ -222,9 +284,9 @@ Pacing Engine은 이 JSON만 보고 `timing_manifest.json`을 결정론적으로
 코드 변경 없이 스타일 파라미터를 추가·override한다.
 
 ```
-registry.yaml           ← 전역 property 카탈로그 (maps_to 필드로 파이프라인 반영 경로 지정)
+registry.yaml              ← 전역 property 카탈로그 (maps_to 필드로 파이프라인 반영 경로 지정)
 presets/lifestyle_kr.yaml  ← 장르 묶음 + 가중치
-custom/amyglamy.yaml    ← 레퍼런스별 override + 커스텀 property
+custom/amyglamy.yaml       ← 레퍼런스별 override + 커스텀 property
 ```
 
 각 property의 `maps_to` 필드가 어느 파이프라인 출력의 어느 필드를 채우는지 결정한다.
@@ -247,11 +309,13 @@ custom/amyglamy.yaml    ← 레퍼런스별 override + 커스텀 property
 
 | 도구 | 용도 |
 |------|------|
-| Claude API | Story Parser · Scene Planner · APO (Orchestrator) |
+| Claude Code (스킬) | Stage 1·2 직접 실행 — API 키 불필요 |
+| Claude API | Orchestrator tool_use · APO |
 | GPT Image 2 | Scene 이미지 생성 (9:16, 한국어 텍스트) |
 | Kling AI | 이미지 → 영상 (Character Reference로 일관성 유지) |
 | ElevenLabs | 한국어 TTS |
 | ffmpeg | 씬 합성 · 자막 burn-in · BGM 믹싱 |
+| PIL (Pillow) | Placeholder 영상 프레임 렌더링 |
 | typer + rich | CLI + TUI 진행 화면 |
 
 ---
