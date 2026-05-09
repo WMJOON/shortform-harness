@@ -34,9 +34,11 @@ def run(
     output_dir.mkdir(parents=True, exist_ok=True)
     results: dict[int, dict] = {}
 
+    visual_model = harness.get("generation", {}).get("visual_model", "gpt-image-1")
+
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
-            executor.submit(_process_scene, scene, anchors, template, backend, output_dir): scene["id"]
+            executor.submit(_process_scene, scene, anchors, template, backend, visual_model, output_dir): scene["id"]
             for scene in scenes
         }
         for future in as_completed(futures):
@@ -54,9 +56,11 @@ def _process_scene(
     anchors: dict,
     template: dict,
     backend: str,
+    visual_model: str,
     output_dir: Path,
 ) -> dict:
     gen_request = _build_generation_request(scene, anchors, template, backend)
+    gen_request["visual_model"] = visual_model
 
     req_path = output_dir / f"scene_{scene['id']:03d}_request.json"
     req_path.write_text(json.dumps(gen_request, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -109,7 +113,7 @@ def _kling_generate(req: dict, output_path: Path) -> Path:
 
 
 def _gpt_image_2_generate(req: dict, output_path: Path) -> Path:
-    """GPT Image 2 (gpt-image-alpha)로 씬 이미지 생성 → ffmpeg로 MP4 변환."""
+    """GPT Image (gpt-image-1)로 씬 이미지 생성 → ffmpeg로 MP4 변환."""
     import openai
 
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -120,15 +124,15 @@ def _gpt_image_2_generate(req: dict, output_path: Path) -> Path:
 
     prompt = req.get("final_prompt", req.get("visual_prompt", ""))
     duration = req.get("duration", 3.0)
+    visual_model = req.get("visual_model", "gpt-image-1")
 
-    # 9:16 세로 이미지 생성
+    # 9:16 세로 이미지 생성 (1024×1536 = gpt-image-1 지원 세로 최대)
     response = client.images.generate(
-        model="gpt-image-alpha",
+        model=visual_model,
         prompt=prompt,
-        size="1024x1792",   # 9:16 근사 (API 지원 비율)
+        size="1024x1536",
         quality="medium",
         n=1,
-        response_format="b64_json",
     )
 
     img_b64 = response.data[0].b64_json
