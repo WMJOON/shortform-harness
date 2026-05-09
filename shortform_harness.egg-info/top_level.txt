@@ -1,5 +1,0 @@
-apo
-consistency
-eval
-orchestrator
-pipeline

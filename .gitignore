@@ -8,3 +8,9 @@
 assets/
 outputs/*.mp4
 outputs/*.mov
+
+# 가상환경 및 빌드 산물
+.venv/
+*.egg-info/
+dist/
+build/
