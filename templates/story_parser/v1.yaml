@@ -47,8 +47,25 @@ user: |
   ## Emotional Arc Pattern (reference style)
   {{ emotional_arc_pattern }}
 
-  Return a JSON object matching the beat_structure schema.
-  duration_ratio values must sum to 1.0.
+  Return ONLY a JSON object with this EXACT structure (no other keys):
+  {
+    "total_duration_sec": {{ total_duration_sec }},
+    "target_persona": "{{ target_persona }}",
+    "emotional_arc": "{{ emotional_arc_pattern }}",
+    "beats": [
+      {"id": 1, "function": "hook",          "duration_ratio": 0.08, "energy": "high",   "description": "..."},
+      {"id": 2, "function": "empathy",        "duration_ratio": 0.20, "energy": "medium", "description": "..."},
+      {"id": 3, "function": "tip",            "duration_ratio": 0.37, "energy": "medium", "description": "..."},
+      {"id": 4, "function": "product_focus",  "duration_ratio": 0.20, "energy": "medium", "description": "..."},
+      {"id": 5, "function": "cta",            "duration_ratio": 0.15, "energy": "high",   "description": "..."}
+    ]
+  }
+
+  Rules:
+  - "function" must be one of: hook, empathy, tip, reveal, product_focus, cta
+  - duration_ratio values must sum to exactly 1.0
+  - first beat function = "hook", last beat function = "cta"
+  - Write description in Korean
 
 eval_cases:
   - id: "sp_case_001"

@@ -24,7 +24,7 @@ except ImportError:
 
 def call_llm(system: str, user: str, max_tokens: int = 2048, backend: str | None = None) -> str:
     """LLM을 호출한다. backend가 None이면 사용 가능한 키로 자동 결정."""
-    resolved = backend or _resolve_backend()
+    resolved = _resolve_backend() if (not backend or backend == "auto") else backend
 
     if resolved == "anthropic":
         return _call_anthropic(system, user, max_tokens)

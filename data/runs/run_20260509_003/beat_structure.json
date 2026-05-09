@@ -1,0 +1,42 @@
+{
+  "total_duration_sec": 30,
+  "target_persona": "girly",
+  "emotional_arc": "curiosity→empathy→solution→desire→action",
+  "beats": [
+    {
+      "id": 1,
+      "function": "hook",
+      "duration_ratio": 0.08,
+      "energy": "high",
+      "description": "야식이 너무 먹고 싶은 순간?"
+    },
+    {
+      "id": 2,
+      "function": "empathy",
+      "duration_ratio": 0.2,
+      "energy": "medium",
+      "description": "모두가 한 번쯤 겪는 다이어트 중 야식의 유혹!"
+    },
+    {
+      "id": 3,
+      "function": "tip",
+      "duration_ratio": 0.37,
+      "energy": "medium",
+      "description": "야식을 피하기 위한 누구나 따라할 수 있는 간단한 팁 세 가지를 나눠드릴게요."
+    },
+    {
+      "id": 4,
+      "function": "product_focus",
+      "duration_ratio": 0.2,
+      "energy": "medium",
+      "description": "여성들의 필수템, 야식 대체 식품도 추천해드려요!"
+    },
+    {
+      "id": 5,
+      "function": "cta",
+      "duration_ratio": 0.15,
+      "energy": "high",
+      "description": "팔로우하거나 좋아요 눌러 더 많은 팁을 받아보세요!"
+    }
+  ]
+}

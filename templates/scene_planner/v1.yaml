@@ -59,7 +59,49 @@ user: |
   ## Active Properties
   {{ active_properties }}
 
-  Return scene_grammar JSON. Validate: scene durations must sum to {{ beat_structure.total_duration_sec }}s.
+  Return ONLY a JSON object with this EXACT top-level structure:
+  {
+    "prompt": "<user concept>",
+    "narrative": {
+      "concept": "<one-line concept>",
+      "beat_count": <N>,
+      "total_duration_sec": {{ beat_structure.total_duration_sec }},
+      "target_persona": "{{ style_profile.narrative.target_persona }}",
+      "emotional_arc": "<arc>",
+      "ppl_present": true
+    },
+    "scenes": [
+      {
+        "id": 1,
+        "scene_type": "hook",
+        "duration": <≤{{ pacing_rules.hook_max_duration }}>,
+        "camera": "selfie-close",
+        "subtitle_density": "high",
+        "caption_style": "burst",
+        "emotion": "<emotion>",
+        "voiceover": "<Korean voiceover>",
+        "visual_prompt": "<English visual prompt including: {{ style_profile.consistency_anchors.character.description }}, {{ style_profile.consistency_anchors.background.description }}>",
+        "zoom": false,
+        "transition_in": "cut",
+        "transition_out": "smash-cut",
+        "bgm_cue": "fade_in"
+      }
+    ],
+    "consistency_anchors": {
+      "character": { "description": "{{ style_profile.consistency_anchors.character.description }}", "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality, multiple people" },
+      "background": { "style": "modern minimalist Korean apartment interior", "description": "{{ style_profile.consistency_anchors.background.description }}", "color_palette": ["#FAFAFA", "#F5E6D3", "#D4C5B0"] },
+      "voice": { "tts_voice_id": "elevenlabs_kr_female_01", "target_energy": "medium-high", "speed_wpm": 180 },
+      "subtitle": { "font": "Noto Sans KR Bold", "color": "#FFFFFF", "stroke": "#000000", "position": "bottom", "emphasis_color": "#FFE566" }
+    },
+    "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
+  }
+
+  Requirements:
+  - scene durations must sum to exactly {{ beat_structure.total_duration_sec }}s (±0.5s)
+  - scene_type: hook | empathy | tip | product_focus | cta
+  - camera: selfie-close | selfie-medium | medium-shot | product-closeup
+  - voiceover in natural Korean conversational style
+  - bgm_cue: fade_in (scene 1) | continue | energy_up | duck (product scene) | fade_out (last)
 
 eval_cases:
   - id: "spl_case_001"
