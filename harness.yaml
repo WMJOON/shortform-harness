@@ -47,10 +47,11 @@ stages:
     fps: 30
 
 # 생성 백엔드
-# visual 전환 방법:
-#   gpt_image_2 → OPENAI_API_KEY 필요  (.env)
-#   kling       → KLING_API_KEY 필요   (.env)
+# llm_backend: anthropic(기본) → ANTHROPIC_API_KEY / openai → OPENAI_API_KEY
+#              auto = 키가 있는 쪽 자동 선택 (anthropic 우선)
+# visual:      gpt_image_2 → OPENAI_API_KEY / kling → KLING_API_KEY
 generation:
+  llm_backend: auto              # auto | anthropic | openai
   visual: gpt_image_2            # kling | gpt_image_2 | runway
   tts: elevenlabs
   tts_voice_id: elevenlabs_kr_female_01

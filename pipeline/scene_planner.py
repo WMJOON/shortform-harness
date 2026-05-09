@@ -19,8 +19,9 @@ def run(
     profile = style_profile or load_style_profile()
     pacing_rules = resolve_pacing_rules(harness)
 
+    llm_backend = harness.get("generation", {}).get("llm_backend", "auto")
     system, user = render_messages(template, _build_vars(beat_structure, profile, pacing_rules, props))
-    scene_grammar = json.loads(strip_code_fence(call_llm(system, user, max_tokens=4096)))
+    scene_grammar = json.loads(strip_code_fence(call_llm(system, user, max_tokens=4096, backend=llm_backend)))
     _validate(scene_grammar, beat_structure)
     return scene_grammar
 

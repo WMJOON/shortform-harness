@@ -35,7 +35,8 @@ def run(
         "emotional_arc_pattern": emotional_arc,
     })
 
-    beat_structure = json.loads(strip_code_fence(call_llm(system, user, max_tokens=2048)))
+    llm_backend = harness.get("generation", {}).get("llm_backend", "auto")
+    beat_structure = json.loads(strip_code_fence(call_llm(system, user, max_tokens=2048, backend=llm_backend)))
 
     issues = check_beat_structure(beat_structure)
     errors = [i for i in issues if i["severity"] == "error"]
