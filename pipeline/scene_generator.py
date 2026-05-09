@@ -1,4 +1,10 @@
-"""pipeline/scene_generator.py — Stage 3: scene_grammar → scene assets (병렬)."""
+"""pipeline/scene_generator.py — Stage 3: scene_grammar → scene assets (병렬).
+
+인물 일관성 전략:
+  1. generate_character_ref() — 캐릭터 레퍼런스 이미지 1장 생성 (run당 1회)
+  2. _gpt_image_2_generate() — Responses API에 ref 이미지 + 씬 프롬프트 전달
+     → 같은 인물로 씬별 구도·상황만 다르게 생성
+"""
 
 from __future__ import annotations
 
@@ -17,6 +23,45 @@ from pipeline.loader import resolve_active_template
 load_dotenv()
 
 
+def generate_character_ref(
+    anchors: dict,
+    output_dir: Path,
+    visual_model: str = "gpt-image-1",
+) -> Path | None:
+    """캐릭터 레퍼런스 이미지를 생성한다. 이미 있으면 재사용."""
+    import openai
+
+    ref_path = output_dir / "character_ref.png"
+    if ref_path.exists():
+        return ref_path
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    char = anchors.get("character", {})
+    bg   = anchors.get("background", {})
+    prompt = (
+        f"Full portrait, frontal pose, centered. "
+        f"{char.get('description', '')}. "
+        f"Background: {bg.get('description', '')}. "
+        f"Photorealistic, vertical composition, soft natural lighting. "
+        f"Negative: {char.get('negative_prompt', '')}."
+    )
+
+    client = openai.OpenAI(api_key=api_key)
+    resp = client.images.generate(
+        model=visual_model,
+        prompt=prompt,
+        size="1024x1536",
+        quality="high",
+        n=1,
+    )
+    img_bytes = base64.b64decode(resp.data[0].b64_json)
+    ref_path.write_bytes(img_bytes)
+    return ref_path
+
+
 def run(
     scene_grammar: dict,
     harness: dict,
@@ -24,21 +69,29 @@ def run(
     scene_ids: list[int] | None = None,
 ) -> dict[int, dict]:
     template = resolve_active_template(harness, "scene_generator")
-    backend = harness.get("generation", {}).get("visual", "kling")
-    anchors = scene_grammar["consistency_anchors"]
-    scenes = scene_grammar["scenes"]
+    backend  = harness.get("generation", {}).get("visual", "kling")
+    anchors  = scene_grammar["consistency_anchors"]
+    scenes   = scene_grammar["scenes"]
 
     if scene_ids is not None:
         scenes = [s for s in scenes if s["id"] in scene_ids]
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    results: dict[int, dict] = {}
-
     visual_model = harness.get("generation", {}).get("visual_model", "gpt-image-1")
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # 레퍼런스 이미지 선생성 (gpt_image_2 백엔드일 때만)
+    char_ref: Path | None = None
+    if backend == "gpt_image_2":
+        char_ref = generate_character_ref(anchors, output_dir, visual_model)
+        if char_ref:
+            print(f"  ✓ character_ref: {char_ref.name}")
+
+    results: dict[int, dict] = {}
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {
-            executor.submit(_process_scene, scene, anchors, template, backend, visual_model, output_dir): scene["id"]
+            executor.submit(
+                _process_scene, scene, anchors, template, backend, visual_model, char_ref, output_dir
+            ): scene["id"]
             for scene in scenes
         }
         for future in as_completed(futures):
@@ -57,10 +110,12 @@ def _process_scene(
     template: dict,
     backend: str,
     visual_model: str,
+    char_ref: Path | None,
     output_dir: Path,
 ) -> dict:
     gen_request = _build_generation_request(scene, anchors, template, backend)
     gen_request["visual_model"] = visual_model
+    gen_request["char_ref"] = str(char_ref) if char_ref else None
 
     req_path = output_dir / f"scene_{scene['id']:03d}_request.json"
     req_path.write_text(json.dumps(gen_request, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -76,7 +131,7 @@ def _build_generation_request(
     backend: str,
 ) -> dict:
     char = anchors.get("character", {})
-    bg = anchors.get("background", {})
+    bg   = anchors.get("background", {})
 
     system, user = render_messages(template, {
         "scene.id": scene["id"],
@@ -97,8 +152,8 @@ def _build_generation_request(
 
 
 def _call_backend(gen_request: dict, output_dir: Path) -> Path:
-    backend = gen_request.get("backend", "kling")
-    scene_id = gen_request.get("scene_id", 0)
+    backend    = gen_request.get("backend", "kling")
+    scene_id   = gen_request.get("scene_id", 0)
     output_path = output_dir / f"scene_{scene_id:03d}.mp4"
 
     if backend == "kling":
@@ -113,33 +168,53 @@ def _kling_generate(req: dict, output_path: Path) -> Path:
 
 
 def _gpt_image_2_generate(req: dict, output_path: Path) -> Path:
-    """GPT Image (gpt-image-1)로 씬 이미지 생성 → ffmpeg로 MP4 변환."""
+    """gpt-image-1으로 씬 이미지 생성.
+
+    character_ref.png가 있으면 Responses API로 인물 일관성 유지.
+    없으면 images.generate() 단독 사용.
+    """
     import openai
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
+        raise RuntimeError("OPENAI_API_KEY가 없습니다.")
 
-    client = openai.OpenAI(api_key=api_key)
-
-    prompt = req.get("final_prompt", req.get("visual_prompt", ""))
-    duration = req.get("duration", 3.0)
+    client       = openai.OpenAI(api_key=api_key)
+    prompt       = req.get("final_prompt", req.get("visual_prompt", ""))
+    duration     = req.get("duration", 3.0)
     visual_model = req.get("visual_model", "gpt-image-1")
+    char_ref_path = req.get("char_ref")
 
-    # 9:16 세로 이미지 생성 (1024×1536 = gpt-image-1 지원 세로 최대)
-    response = client.images.generate(
-        model=visual_model,
-        prompt=prompt,
-        size="1024x1536",
-        quality="medium",
-        n=1,
-    )
+    if char_ref_path and Path(char_ref_path).exists():
+        # images.edit() — 레퍼런스 이미지 기반으로 인물 일관성 유지
+        edit_prompt = (
+            f"Same person as in the reference image, new scene: {prompt}. "
+            f"Keep face, hair, skin tone, body type identical. "
+            f"Only change pose, expression, background, and situation."
+        )
+        with open(char_ref_path, "rb") as ref_f:
+            resp = client.images.edit(
+                model=visual_model,
+                image=ref_f,
+                prompt=edit_prompt[:4000],
+                size="1024x1536",
+                n=1,
+            )
+        img_b64 = resp.data[0].b64_json
+    else:
+        # 레퍼런스 없으면 단독 생성
+        resp = client.images.generate(
+            model=visual_model,
+            prompt=prompt,
+            size="1024x1536",
+            quality="medium",
+            n=1,
+        )
+        img_b64 = resp.data[0].b64_json
 
-    img_b64 = response.data[0].b64_json
     img_path = output_path.with_suffix(".png")
     img_path.write_bytes(base64.b64decode(img_b64))
 
-    # PNG → MP4 (1080×1920, duration초)
     subprocess.run([
         "ffmpeg", "-y", "-loop", "1",
         "-i", str(img_path),
@@ -151,5 +226,5 @@ def _gpt_image_2_generate(req: dict, output_path: Path) -> Path:
         str(output_path),
     ], check=True, capture_output=True)
 
-    img_path.unlink()  # 임시 PNG 삭제
+    img_path.unlink()
     return output_path
