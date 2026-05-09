@@ -1,0 +1,112 @@
+{
+  "prompt": "여행 꿀팁 — 해외여행 짐 줄이는 법",
+  "narrative": {
+    "concept": "해외여행 짐 30% 줄이는 꿀팁 3가지",
+    "beat_count": 5,
+    "total_duration_sec": 30,
+    "target_persona": "girly",
+    "emotional_arc": "curiosity→empathy→solution→desire→action",
+    "ppl_present": true
+  },
+  "scenes": [
+    {
+      "id": 1,
+      "scene_type": "hook",
+      "duration": 2.4,
+      "camera": "selfie-close",
+      "subtitle_density": "high",
+      "caption_style": "burst",
+      "emotion": "curious",
+      "voiceover": "해외여행 짐 쌀 때마다 무게 초과 뜨는 girly 나야 나?",
+      "visual_prompt": "Korean woman in her 20s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Tight close-up selfie angle, face fills 70% frame, exaggerated surprised-relatable expression, both hands up, looking directly at camera. High energy hook moment.",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "smash-cut",
+      "bgm_cue": "fade_in"
+    },
+    {
+      "id": 2,
+      "scene_type": "empathy",
+      "duration": 6.0,
+      "camera": "selfie-medium",
+      "subtitle_density": "medium",
+      "caption_style": "normal",
+      "emotion": "empathetic",
+      "voiceover": "나 작년에 파리 가는 날 공항에서 캐리어 무게 초과로 진짜 눈물 날 뻔 했거든. 옷을 공항에서 버렸어",
+      "visual_prompt": "Korean woman in her 20s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Medium selfie, shoulders visible, empathetic soft expression, gentle nod, relatable confession energy, slight cringe face.",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "cut",
+      "bgm_cue": "continue"
+    },
+    {
+      "id": 3,
+      "scene_type": "tip",
+      "duration": 11.1,
+      "camera": "medium-shot",
+      "subtitle_density": "high",
+      "caption_style": "kinetic",
+      "emotion": "informative",
+      "voiceover": "그때부터 연구한 짐 줄이는 꿀팁 3가지. 첫째 화장품은 고체로 바꿔. 둘째 옷은 컬러 통일해서 코디 조합 줄이고. 셋째 현지 편의점 활용하면 짐 반으로 줄어",
+      "visual_prompt": "Korean woman in her 20s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Medium shot, counting on fingers one by one, confident teaching pose, clean authoritative tip-sharing energy, items laid out on table beside her.",
+      "zoom": true,
+      "transition_in": "cut",
+      "transition_out": "cut",
+      "bgm_cue": "energy_up"
+    },
+    {
+      "id": 4,
+      "scene_type": "product_focus",
+      "duration": 6.0,
+      "camera": "product-closeup",
+      "subtitle_density": "medium",
+      "caption_style": "normal",
+      "emotion": "aspirational",
+      "voiceover": "요즘 내가 쓰는 거 이거야. 압축 파우치 진짜 레전드. 부피 60% 줄어들고 방수도 돼",
+      "visual_prompt": "Korean woman in her 20s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Macro close-up of travel compression pouches on clean white surface, warm soft lighting, premium aspirational feel, held in clean slender hands with minimalist luggage in background.",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "cut",
+      "bgm_cue": "duck"
+    },
+    {
+      "id": 5,
+      "scene_type": "cta",
+      "duration": 4.5,
+      "camera": "selfie-close",
+      "subtitle_density": "high",
+      "caption_style": "burst",
+      "emotion": "warm",
+      "voiceover": "여행 전에 꼭 다시 보려면 저장해두고 팔로우도 해줘 girly들",
+      "visual_prompt": "Korean woman in her 20s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Tight close-up selfie, direct warm gaze to camera, bright inviting smile, finger heart gesture toward viewer.",
+      "zoom": false,
+      "transition_in": "cut",
+      "transition_out": "fade",
+      "bgm_cue": "fade_out"
+    }
+  ],
+  "consistency_anchors": {
+    "character": {
+      "description": "Korean woman in her 20s, natural makeup, casual-chic outfit, warm expression",
+      "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality, multiple people"
+    },
+    "background": {
+      "style": "modern minimalist Korean apartment interior",
+      "description": "clean white walls, soft natural light, minimal decor",
+      "color_palette": ["#FAFAFA", "#F5E6D3", "#D4C5B0"]
+    },
+    "voice": {
+      "tts_voice_id": "elevenlabs_kr_female_01",
+      "target_energy": "medium-high",
+      "speed_wpm": 180
+    },
+    "subtitle": {
+      "font": "Noto Sans KR Bold",
+      "color": "#FFFFFF",
+      "stroke": "#000000",
+      "position": "bottom",
+      "emphasis_color": "#FFE566"
+    }
+  },
+  "hashtags": ["#여행꿀팁", "#해외여행", "#여행짐싸기", "#여행준비", "#혼자여행"]
+}

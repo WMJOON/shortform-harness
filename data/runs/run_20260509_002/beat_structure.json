@@ -1,0 +1,42 @@
+{
+  "total_duration_sec": 30,
+  "target_persona": "girly",
+  "emotional_arc": "curiosity→empathy→solution→desire→action",
+  "beats": [
+    {
+      "id": 1,
+      "function": "hook",
+      "duration_ratio": 0.08,
+      "energy": "high",
+      "description": "해외여행 짐 무게 초과로 낭패 본 경험 공감 질문"
+    },
+    {
+      "id": 2,
+      "function": "empathy",
+      "duration_ratio": 0.20,
+      "energy": "medium",
+      "description": "나도 그랬어 — 첫 유럽 여행 때 캐리어 무게 초과로 공항에서 울었던 경험"
+    },
+    {
+      "id": 3,
+      "function": "tip",
+      "duration_ratio": 0.37,
+      "energy": "medium-high",
+      "description": "짐 30% 줄이는 여행 꿀팁 3가지 공개"
+    },
+    {
+      "id": 4,
+      "function": "product_focus",
+      "duration_ratio": 0.20,
+      "energy": "medium",
+      "description": "여행 필수 압축 파우치 자연스러운 소개"
+    },
+    {
+      "id": 5,
+      "function": "cta",
+      "duration_ratio": 0.15,
+      "energy": "high",
+      "description": "저장·팔로우 직접 요청"
+    }
+  ]
+}

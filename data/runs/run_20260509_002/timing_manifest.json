@@ -1,0 +1,259 @@
+{
+  "total_duration_sec": 30,
+  "bgm_track": "",
+  "bgm_duck_points": [
+    {
+      "start_sec": 19.5,
+      "end_sec": 25.5,
+      "ratio": 0.3
+    }
+  ],
+  "scenes": [
+    {
+      "id": 1,
+      "start_sec": 0.0,
+      "end_sec": 2.4,
+      "zoom": false,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "fade_in"
+      },
+      "subtitle_timing": [
+        {
+          "text": "해외여행 짐",
+          "start_ms": 0,
+          "end_ms": 480,
+          "emphasis": false
+        },
+        {
+          "text": "쌀 때마다",
+          "start_ms": 480,
+          "end_ms": 960,
+          "emphasis": false
+        },
+        {
+          "text": "무게 초과",
+          "start_ms": 960,
+          "end_ms": 1440,
+          "emphasis": false
+        },
+        {
+          "text": "뜨는 girly",
+          "start_ms": 1440,
+          "end_ms": 1920,
+          "emphasis": false
+        },
+        {
+          "text": "나야 나?",
+          "start_ms": 1920,
+          "end_ms": 2400,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start_sec": 2.4,
+      "end_sec": 8.4,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "나 작년에 파리 가는",
+          "start_ms": 0,
+          "end_ms": 1200,
+          "emphasis": false
+        },
+        {
+          "text": "날 공항에서 캐리어 무게",
+          "start_ms": 1200,
+          "end_ms": 2400,
+          "emphasis": false
+        },
+        {
+          "text": "초과로 진짜 눈물 날",
+          "start_ms": 2400,
+          "end_ms": 3600,
+          "emphasis": false
+        },
+        {
+          "text": "뻔 했거든. 옷을 공항에서",
+          "start_ms": 3600,
+          "end_ms": 4800,
+          "emphasis": false
+        },
+        {
+          "text": "버렸어",
+          "start_ms": 4800,
+          "end_ms": 6000,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start_sec": 8.4,
+      "end_sec": 19.5,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "energy_up"
+      },
+      "subtitle_timing": [
+        {
+          "text": "그때부터 연구한",
+          "start_ms": 0,
+          "end_ms": 925,
+          "emphasis": false
+        },
+        {
+          "text": "짐 줄이는",
+          "start_ms": 925,
+          "end_ms": 1850,
+          "emphasis": false
+        },
+        {
+          "text": "꿀팁 3가지.",
+          "start_ms": 1850,
+          "end_ms": 2775,
+          "emphasis": true
+        },
+        {
+          "text": "첫째 화장품은",
+          "start_ms": 2775,
+          "end_ms": 3700,
+          "emphasis": false
+        },
+        {
+          "text": "고체로 바꿔.",
+          "start_ms": 3700,
+          "end_ms": 4625,
+          "emphasis": false
+        },
+        {
+          "text": "둘째 옷은",
+          "start_ms": 4625,
+          "end_ms": 5550,
+          "emphasis": false
+        },
+        {
+          "text": "컬러 통일해서",
+          "start_ms": 5550,
+          "end_ms": 6475,
+          "emphasis": false
+        },
+        {
+          "text": "코디 조합",
+          "start_ms": 6475,
+          "end_ms": 7400,
+          "emphasis": false
+        },
+        {
+          "text": "줄이고. 셋째",
+          "start_ms": 7400,
+          "end_ms": 8325,
+          "emphasis": false
+        },
+        {
+          "text": "현지 편의점",
+          "start_ms": 8325,
+          "end_ms": 9250,
+          "emphasis": false
+        },
+        {
+          "text": "활용하면 짐",
+          "start_ms": 9250,
+          "end_ms": 10175,
+          "emphasis": false
+        },
+        {
+          "text": "반으로 줄어",
+          "start_ms": 10175,
+          "end_ms": 11100,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "start_sec": 19.5,
+      "end_sec": 25.5,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "duck"
+      },
+      "subtitle_timing": [
+        {
+          "text": "요즘 내가 쓰는 거",
+          "start_ms": 0,
+          "end_ms": 1500,
+          "emphasis": false
+        },
+        {
+          "text": "이거야. 압축 파우치 진짜",
+          "start_ms": 1500,
+          "end_ms": 3000,
+          "emphasis": false
+        },
+        {
+          "text": "레전드. 부피 60% 줄어들고",
+          "start_ms": 3000,
+          "end_ms": 4500,
+          "emphasis": true
+        },
+        {
+          "text": "방수도 돼",
+          "start_ms": 4500,
+          "end_ms": 6000,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "start_sec": 25.5,
+      "end_sec": 30.0,
+      "zoom": false,
+      "transition_out": "fade",
+      "bgm": {
+        "cue": "fade_out"
+      },
+      "subtitle_timing": [
+        {
+          "text": "여행 전에",
+          "start_ms": 0,
+          "end_ms": 900,
+          "emphasis": false
+        },
+        {
+          "text": "꼭 다시",
+          "start_ms": 900,
+          "end_ms": 1800,
+          "emphasis": false
+        },
+        {
+          "text": "보려면 저장해두고",
+          "start_ms": 1800,
+          "end_ms": 2700,
+          "emphasis": false
+        },
+        {
+          "text": "팔로우도 해줘",
+          "start_ms": 2700,
+          "end_ms": 3600,
+          "emphasis": false
+        },
+        {
+          "text": "girly들",
+          "start_ms": 3600,
+          "end_ms": 4500,
+          "emphasis": false
+        }
+      ]
+    }
+  ]
+}
