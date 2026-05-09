@@ -1,0 +1,617 @@
+{
+  "total_duration_sec": 30,
+  "bgm_track": "",
+  "bgm_duck_points": [
+    {
+      "start_sec": 19.2,
+      "end_sec": 21.2,
+      "ratio": 0.3
+    },
+    {
+      "start_sec": 21.2,
+      "end_sec": 23.2,
+      "ratio": 0.3
+    },
+    {
+      "start_sec": 23.2,
+      "end_sec": 25.2,
+      "ratio": 0.3
+    }
+  ],
+  "scenes": [
+    {
+      "id": 1,
+      "start_sec": 0.0,
+      "end_sec": 2.0,
+      "zoom": true,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "fade_in"
+      },
+      "subtitle_timing": [
+        {
+          "text": "출근 10분",
+          "start_ms": 0,
+          "end_ms": 666,
+          "emphasis": true
+        },
+        {
+          "text": "전? 아직",
+          "start_ms": 666,
+          "end_ms": 1332,
+          "emphasis": true
+        },
+        {
+          "text": "침대야?",
+          "start_ms": 1332,
+          "end_ms": 1998,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start_sec": 2.0,
+      "end_sec": 3.5,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "오늘도 얼굴",
+          "start_ms": 0,
+          "end_ms": 500,
+          "emphasis": false
+        },
+        {
+          "text": "왜 이렇게",
+          "start_ms": 500,
+          "end_ms": 1000,
+          "emphasis": false
+        },
+        {
+          "text": "부었지…",
+          "start_ms": 1000,
+          "end_ms": 1500,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start_sec": 3.5,
+      "end_sec": 5.0,
+      "zoom": true,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "앞머리… 완전",
+          "start_ms": 0,
+          "end_ms": 750,
+          "emphasis": false
+        },
+        {
+          "text": "부스스해.",
+          "start_ms": 750,
+          "end_ms": 1500,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "start_sec": 5.0,
+      "end_sec": 6.5,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "뭐 입지?",
+          "start_ms": 0,
+          "end_ms": 375,
+          "emphasis": true
+        },
+        {
+          "text": "셋업으로 깔끔하게?",
+          "start_ms": 375,
+          "end_ms": 750,
+          "emphasis": true
+        },
+        {
+          "text": "girly는 살리고",
+          "start_ms": 750,
+          "end_ms": 1125,
+          "emphasis": false
+        },
+        {
+          "text": "싶고…",
+          "start_ms": 1125,
+          "end_ms": 1500,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "start_sec": 6.5,
+      "end_sec": 8.0,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "슬랙 알림",
+          "start_ms": 0,
+          "end_ms": 375,
+          "emphasis": false
+        },
+        {
+          "text": "폭격… 늦겠는데도",
+          "start_ms": 375,
+          "end_ms": 750,
+          "emphasis": false
+        },
+        {
+          "text": "무드는 못",
+          "start_ms": 750,
+          "end_ms": 1125,
+          "emphasis": false
+        },
+        {
+          "text": "버려!",
+          "start_ms": 1125,
+          "end_ms": 1500,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "start_sec": 8.0,
+      "end_sec": 9.4,
+      "zoom": true,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "energy_up"
+      },
+      "subtitle_timing": [
+        {
+          "text": "1분, 미셀라",
+          "start_ms": 0,
+          "end_ms": 466,
+          "emphasis": true
+        },
+        {
+          "text": "패드로 싹—붓기",
+          "start_ms": 466,
+          "end_ms": 932,
+          "emphasis": false
+        },
+        {
+          "text": "톡톡 정리!",
+          "start_ms": 932,
+          "end_ms": 1398,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "start_sec": 9.4,
+      "end_sec": 10.8,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "미스트 촉촉!",
+          "start_ms": 0,
+          "end_ms": 466,
+          "emphasis": true
+        },
+        {
+          "text": "선크림 듬뿍",
+          "start_ms": 466,
+          "end_ms": 932,
+          "emphasis": false
+        },
+        {
+          "text": "바르고 끝.",
+          "start_ms": 932,
+          "end_ms": 1398,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "start_sec": 10.8,
+      "end_sec": 12.2,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "쿠션 팡팡—잡티",
+          "start_ms": 0,
+          "end_ms": 466,
+          "emphasis": false
+        },
+        {
+          "text": "커버하고 촉촉",
+          "start_ms": 466,
+          "end_ms": 932,
+          "emphasis": false
+        },
+        {
+          "text": "광!",
+          "start_ms": 932,
+          "end_ms": 1398,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "start_sec": 12.2,
+      "end_sec": 13.6,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "크림 블러셔",
+          "start_ms": 0,
+          "end_ms": 700,
+          "emphasis": false
+        },
+        {
+          "text": "톡톡—볼에 생기!",
+          "start_ms": 700,
+          "end_ms": 1400,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "start_sec": 13.6,
+      "end_sec": 15.0,
+      "zoom": true,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "체리 틴트",
+          "start_ms": 0,
+          "end_ms": 466,
+          "emphasis": false
+        },
+        {
+          "text": "슥, 브로우",
+          "start_ms": 466,
+          "end_ms": 932,
+          "emphasis": false
+        },
+        {
+          "text": "쓱—끝!",
+          "start_ms": 932,
+          "end_ms": 1398,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "start_sec": 15.0,
+      "end_sec": 16.4,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "앞머리 롤+드라이,",
+          "start_ms": 0,
+          "end_ms": 700,
+          "emphasis": false
+        },
+        {
+          "text": "진주핀으로 고정!",
+          "start_ms": 700,
+          "end_ms": 1400,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "start_sec": 16.4,
+      "end_sec": 17.8,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "셋업룩에 리본",
+          "start_ms": 0,
+          "end_ms": 466,
+          "emphasis": false
+        },
+        {
+          "text": "토트, 귀걸이",
+          "start_ms": 466,
+          "end_ms": 932,
+          "emphasis": false
+        },
+        {
+          "text": "착!",
+          "start_ms": 932,
+          "end_ms": 1398,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "start_sec": 17.8,
+      "end_sec": 19.2,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "요거트, 텀블러,",
+          "start_ms": 0,
+          "end_ms": 350,
+          "emphasis": false
+        },
+        {
+          "text": "사원증, 카드,",
+          "start_ms": 350,
+          "end_ms": 700,
+          "emphasis": false
+        },
+        {
+          "text": "립 체크—가방에",
+          "start_ms": 700,
+          "end_ms": 1050,
+          "emphasis": false
+        },
+        {
+          "text": "쏙!",
+          "start_ms": 1050,
+          "end_ms": 1400,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "start_sec": 19.2,
+      "end_sec": 21.2,
+      "zoom": false,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "duck"
+      },
+      "subtitle_timing": [
+        {
+          "text": "요즘 내가",
+          "start_ms": 0,
+          "end_ms": 400,
+          "emphasis": false
+        },
+        {
+          "text": "쓰는 거",
+          "start_ms": 400,
+          "end_ms": 800,
+          "emphasis": false
+        },
+        {
+          "text": "1: 쿠션.",
+          "start_ms": 800,
+          "end_ms": 1200,
+          "emphasis": true
+        },
+        {
+          "text": "촉촉 커버에",
+          "start_ms": 1200,
+          "end_ms": 1600,
+          "emphasis": false
+        },
+        {
+          "text": "모공까지 매끈!",
+          "start_ms": 1600,
+          "end_ms": 2000,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "start_sec": 21.2,
+      "end_sec": 23.2,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "duck"
+      },
+      "subtitle_timing": [
+        {
+          "text": "2: 선스틱.",
+          "start_ms": 0,
+          "end_ms": 500,
+          "emphasis": true
+        },
+        {
+          "text": "번들은 잡고",
+          "start_ms": 500,
+          "end_ms": 1000,
+          "emphasis": false
+        },
+        {
+          "text": "예쁜 광만",
+          "start_ms": 1000,
+          "end_ms": 1500,
+          "emphasis": false
+        },
+        {
+          "text": "남겨줘.",
+          "start_ms": 1500,
+          "end_ms": 2000,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "start_sec": 23.2,
+      "end_sec": 25.2,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "duck"
+      },
+      "subtitle_timing": [
+        {
+          "text": "3: 체리",
+          "start_ms": 0,
+          "end_ms": 500,
+          "emphasis": true
+        },
+        {
+          "text": "틴트. 생기",
+          "start_ms": 500,
+          "end_ms": 1000,
+          "emphasis": false
+        },
+        {
+          "text": "업! 파우치에",
+          "start_ms": 1000,
+          "end_ms": 1500,
+          "emphasis": true
+        },
+        {
+          "text": "쏙 들어가.",
+          "start_ms": 1500,
+          "end_ms": 2000,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "start_sec": 25.2,
+      "end_sec": 27.6,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "energy_up"
+      },
+      "subtitle_timing": [
+        {
+          "text": "10분 루틴",
+          "start_ms": 0,
+          "end_ms": 300,
+          "emphasis": true
+        },
+        {
+          "text": "지금 저장하고",
+          "start_ms": 300,
+          "end_ms": 600,
+          "emphasis": false
+        },
+        {
+          "text": "내일 아침",
+          "start_ms": 600,
+          "end_ms": 900,
+          "emphasis": false
+        },
+        {
+          "text": "그대로 따라",
+          "start_ms": 900,
+          "end_ms": 1200,
+          "emphasis": false
+        },
+        {
+          "text": "해봐! 댓글로",
+          "start_ms": 1200,
+          "end_ms": 1500,
+          "emphasis": true
+        },
+        {
+          "text": "너의 최애",
+          "start_ms": 1500,
+          "end_ms": 1800,
+          "emphasis": false
+        },
+        {
+          "text": "출근템 1개",
+          "start_ms": 1800,
+          "end_ms": 2100,
+          "emphasis": true
+        },
+        {
+          "text": "알려줘!",
+          "start_ms": 2100,
+          "end_ms": 2400,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "start_sec": 27.6,
+      "end_sec": 30.0,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "fade_out"
+      },
+      "subtitle_timing": [
+        {
+          "text": "더 짧은",
+          "start_ms": 0,
+          "end_ms": 800,
+          "emphasis": false
+        },
+        {
+          "text": "girly 루틴은",
+          "start_ms": 800,
+          "end_ms": 1600,
+          "emphasis": false
+        },
+        {
+          "text": "팔로우에서 계속!",
+          "start_ms": 1600,
+          "end_ms": 2400,
+          "emphasis": true
+        }
+      ]
+    }
+  ]
+}

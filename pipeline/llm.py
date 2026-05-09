@@ -78,9 +78,14 @@ def _call_openai(system: str, user: str, max_tokens: int, model: str) -> str:
         raise RuntimeError("pip install openai")
 
     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    # gpt-5 이상 및 o-시리즈: max_completion_tokens 사용 + reasoning 버퍼 확보
+    _REASONING_MODELS = ("gpt-5", "o1", "o3", "o4")
+    is_reasoning = any(model.startswith(p) for p in _REASONING_MODELS)
+    token_kwarg  = "max_completion_tokens" if is_reasoning else "max_tokens"
+    token_value  = max(max_tokens * 4, 8192) if is_reasoning else max_tokens
     resp = client.chat.completions.create(
         model=model,
-        max_tokens=max_tokens,
+        **{token_kwarg: token_value},
         messages=[
             {"role": "system", "content": system},
             {"role": "user",   "content": user},
