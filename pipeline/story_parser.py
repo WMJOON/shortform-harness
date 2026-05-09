@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from consistency.checker import check_beat_structure
-from pipeline.llm import call_llm, strip_code_fence, render_messages
+from pipeline.llm import call_llm, strip_code_fence, render_messages, _resolve_backend as _resolve_backend_name
 from pipeline.loader import resolve_active_template, resolve_active_properties, load_style_profile
 
 
@@ -35,8 +35,10 @@ def run(
         "emotional_arc_pattern": emotional_arc,
     })
 
-    llm_backend = harness.get("generation", {}).get("llm_backend", "auto")
-    beat_structure = json.loads(strip_code_fence(call_llm(system, user, max_tokens=2048, backend=llm_backend)))
+    gen = harness.get("generation", {})
+    llm_backend = gen.get("llm_backend", "auto")
+    llm_model   = gen.get("llm_model", {}).get(_resolve_backend_name(llm_backend))
+    beat_structure = json.loads(strip_code_fence(call_llm(system, user, max_tokens=2048, backend=llm_backend, model=llm_model)))
 
     issues = check_beat_structure(beat_structure)
     errors = [i for i in issues if i["severity"] == "error"]

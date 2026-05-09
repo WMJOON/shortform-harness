@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import os
 
-ANTHROPIC_MODEL = "claude-sonnet-4-6"
-OPENAI_MODEL    = "gpt-4o"
+_DEFAULT_MODELS = {
+    "anthropic": "claude-sonnet-4-6",
+    "openai":    "gpt-4o",
+}
 
 try:
     from dotenv import load_dotenv
@@ -22,14 +24,20 @@ except ImportError:
     pass
 
 
-def call_llm(system: str, user: str, max_tokens: int = 2048, backend: str | None = None) -> str:
-    """LLM을 호출한다. backend가 None이면 사용 가능한 키로 자동 결정."""
+def call_llm(
+    system: str,
+    user: str,
+    max_tokens: int = 2048,
+    backend: str | None = None,
+    model: str | None = None,
+) -> str:
+    """LLM을 호출한다. backend가 None/'auto'이면 사용 가능한 키로 자동 결정."""
     resolved = _resolve_backend() if (not backend or backend == "auto") else backend
 
     if resolved == "anthropic":
-        return _call_anthropic(system, user, max_tokens)
+        return _call_anthropic(system, user, max_tokens, model or _DEFAULT_MODELS["anthropic"])
     if resolved == "openai":
-        return _call_openai(system, user, max_tokens)
+        return _call_openai(system, user, max_tokens, model or _DEFAULT_MODELS["openai"])
 
     raise RuntimeError(
         f"LLM 백엔드 '{resolved}'을 사용할 수 없습니다.\n"
@@ -47,7 +55,7 @@ def _resolve_backend() -> str:
     return "none"
 
 
-def _call_anthropic(system: str, user: str, max_tokens: int) -> str:
+def _call_anthropic(system: str, user: str, max_tokens: int, model: str) -> str:
     try:
         import anthropic
     except ImportError:
@@ -55,7 +63,7 @@ def _call_anthropic(system: str, user: str, max_tokens: int) -> str:
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
-        model=ANTHROPIC_MODEL,
+        model=model,
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
@@ -63,7 +71,7 @@ def _call_anthropic(system: str, user: str, max_tokens: int) -> str:
     return resp.content[0].text
 
 
-def _call_openai(system: str, user: str, max_tokens: int) -> str:
+def _call_openai(system: str, user: str, max_tokens: int, model: str) -> str:
     try:
         import openai
     except ImportError:
@@ -71,7 +79,7 @@ def _call_openai(system: str, user: str, max_tokens: int) -> str:
 
     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     resp = client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=model,
         max_tokens=max_tokens,
         messages=[
             {"role": "system", "content": system},

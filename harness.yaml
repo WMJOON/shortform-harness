@@ -52,7 +52,11 @@ stages:
 # visual:      gpt_image_2 → OPENAI_API_KEY / kling → KLING_API_KEY
 generation:
   llm_backend: auto              # auto | anthropic | openai
+  llm_model:                     # 비워두면 backend별 기본값 사용
+    anthropic: claude-sonnet-4-6 # claude-opus-4-6 | claude-sonnet-4-6 | claude-haiku-4-5-20251001
+    openai: gpt-4o               # gpt-4o | gpt-4o-mini | gpt-4.1 | o4-mini
   visual: gpt_image_2            # kling | gpt_image_2 | runway
+  visual_model: gpt-image-alpha  # gpt-image-alpha | dall-e-3
   tts: elevenlabs
   tts_voice_id: elevenlabs_kr_female_01
 

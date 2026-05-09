@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from pipeline.llm import call_llm, strip_code_fence, render_messages
+from pipeline.llm import call_llm, strip_code_fence, render_messages, _resolve_backend as _resolve_backend_name
 from pipeline.loader import resolve_active_template, resolve_active_properties, load_style_profile, resolve_pacing_rules
 from pipeline.constants import SceneType
 
@@ -19,9 +19,11 @@ def run(
     profile = style_profile or load_style_profile()
     pacing_rules = resolve_pacing_rules(harness)
 
-    llm_backend = harness.get("generation", {}).get("llm_backend", "auto")
+    gen = harness.get("generation", {})
+    llm_backend = gen.get("llm_backend", "auto")
+    llm_model   = gen.get("llm_model", {}).get(_resolve_backend_name(llm_backend))
     system, user = render_messages(template, _build_vars(beat_structure, profile, pacing_rules, props))
-    scene_grammar = json.loads(strip_code_fence(call_llm(system, user, max_tokens=4096, backend=llm_backend)))
+    scene_grammar = json.loads(strip_code_fence(call_llm(system, user, max_tokens=4096, backend=llm_backend, model=llm_model)))
     _validate(scene_grammar, beat_structure)
     return scene_grammar
 
