@@ -1,6 +1,9 @@
 **/__pycache__
 *.pyc
 
+# 환경 변수 (API 키 포함 — 절대 커밋 금지)
+.env
+
 # 생성된 에셋 및 영상 (바이너리, 재생성 가능)
 assets/
 outputs/*.mp4

@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import base64
 import json
+import os
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from pipeline.llm import call_llm, strip_code_fence, render_messages
 from pipeline.loader import resolve_active_template
+
+load_dotenv()
 
 
 def run(
@@ -102,4 +109,43 @@ def _kling_generate(req: dict, output_path: Path) -> Path:
 
 
 def _gpt_image_2_generate(req: dict, output_path: Path) -> Path:
-    raise NotImplementedError("GPT Image 2 backend not yet implemented")
+    """GPT Image 2 (gpt-image-alpha)로 씬 이미지 생성 → ffmpeg로 MP4 변환."""
+    import openai
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
+
+    client = openai.OpenAI(api_key=api_key)
+
+    prompt = req.get("final_prompt", req.get("visual_prompt", ""))
+    duration = req.get("duration", 3.0)
+
+    # 9:16 세로 이미지 생성
+    response = client.images.generate(
+        model="gpt-image-alpha",
+        prompt=prompt,
+        size="1024x1792",   # 9:16 근사 (API 지원 비율)
+        quality="medium",
+        n=1,
+        response_format="b64_json",
+    )
+
+    img_b64 = response.data[0].b64_json
+    img_path = output_path.with_suffix(".png")
+    img_path.write_bytes(base64.b64decode(img_b64))
+
+    # PNG → MP4 (1080×1920, duration초)
+    subprocess.run([
+        "ffmpeg", "-y", "-loop", "1",
+        "-i", str(img_path),
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+        "-t", str(duration),
+        "-r", "30",
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        str(output_path),
+    ], check=True, capture_output=True)
+
+    img_path.unlink()  # 임시 PNG 삭제
+    return output_path

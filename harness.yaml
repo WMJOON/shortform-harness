@@ -47,8 +47,11 @@ stages:
     fps: 30
 
 # 생성 백엔드
+# visual 전환 방법:
+#   gpt_image_2 → OPENAI_API_KEY 필요  (.env)
+#   kling       → KLING_API_KEY 필요   (.env)
 generation:
-  visual: kling                  # kling | gpt_image_2 | runway
+  visual: gpt_image_2            # kling | gpt_image_2 | runway
   tts: elevenlabs
   tts_voice_id: elevenlabs_kr_female_01
 
