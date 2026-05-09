@@ -14,7 +14,7 @@ import os
 
 _DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-6",
-    "openai":    "gpt-4o",
+    "openai":    "gpt-5",
 }
 
 try:
