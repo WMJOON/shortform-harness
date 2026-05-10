@@ -1,0 +1,35 @@
+{
+  "_comment": "레퍼런스 영상 분석 결과 — harness run 전에 populate 필요",
+  "hook": {
+    "type": "question"
+  },
+  "narrative": {
+    "target_persona": "girly",
+    "ppl_bridge_phrase": "요즘 내가 쓰는 거",
+    "emotional_arc": "curiosity→empathy→solution→desire→action",
+    "ppl_present": true
+  },
+  "consistency_anchors": {
+    "character": {
+      "description": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression",
+      "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality"
+    },
+    "background": {
+      "style": "modern minimalist Korean apartment interior",
+      "description": "clean white walls, soft natural light, minimal decor",
+      "color_palette": ["#FAFAFA", "#F5E6D3", "#D4C5B0"]
+    },
+    "voice": {
+      "tts_voice_id": "elevenlabs_kr_female_01",
+      "target_energy": "medium-high",
+      "speed_wpm": 180
+    },
+    "subtitle": {
+      "font": "Noto Sans KR Bold",
+      "color": "#FFFFFF",
+      "stroke": "#000000",
+      "position": "bottom",
+      "emphasis_color": "#FFE566"
+    }
+  }
+}

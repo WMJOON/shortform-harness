@@ -1,0 +1,39 @@
+{
+  "input": {
+    "scene": {
+      "id": 1,
+      "scene_type": "hook",
+      "duration": 3.0,
+      "camera": "selfie-close",
+      "emotion": "curious",
+      "zoom": false,
+      "voiceover": "트러블 때문에 맨날 쿨링패드만 붙이고 있는 girly 있어?",
+      "visual_prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, modern minimalist Korean apartment interior. Selfie close-up, surprised-questioning expression."
+    },
+    "consistency_anchors": {
+      "character": {
+        "description": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression",
+        "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality"
+      },
+      "background": {
+        "style": "modern minimalist Korean apartment interior",
+        "description": "clean white walls, soft natural light, minimal decor"
+      }
+    },
+    "generation_backend": "kling"
+  },
+  "expected_output": {
+    "scene_id": 1,
+    "backend": "kling",
+    "prompt": "Korean woman in her 20s-30s, natural makeup, casual-chic outfit, warm expression, modern minimalist Korean apartment interior, clean white walls, soft natural light. Tight close-up selfie angle, face fills 70% frame, dynamic high-energy attention-grabbing hook moment, surprised-questioning expression, direct camera gaze.",
+    "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality",
+    "aspect_ratio": "9:16",
+    "duration_sec": 3.0,
+    "backend_params": {
+      "kling": {
+        "motion_strength": 0.8,
+        "camera_motion": "static"
+      }
+    }
+  }
+}

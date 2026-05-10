@@ -1,0 +1,31 @@
+rules:
+  - id: PI001
+    description: "beat_structure.total_duration_sec == Σ(beat.duration_ratio * total_duration_sec)"
+    check: sum_of_beat_duration_ratios_eq_1
+    severity: error
+
+  - id: PI002
+    description: "scene_grammar.scenes[0].scene_type == hook"
+    check: first_scene_is_hook
+    severity: error
+
+  - id: PI003
+    description: "narrative.ppl_present == true → scenes에 product_focus 씬 존재"
+    check: ppl_present_implies_product_focus_scene
+    severity: error
+
+  - id: PI004
+    description: "timing_manifest scene 수 == scene_grammar scene 수"
+    check: timing_scene_count_matches_grammar
+    severity: error
+
+  - id: PI005
+    description: "active_properties의 모든 key가 style_profile에 존재"
+    check: active_properties_in_style_profile
+    severity: warning
+
+  - id: PI006
+    description: "pacing_rules.avg_scene_length ≈ mean(scene.duration) ±20%"
+    check: avg_scene_length_within_tolerance
+    tolerance: 0.20
+    severity: warning

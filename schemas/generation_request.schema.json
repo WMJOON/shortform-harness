@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GenerationRequest",
+  "description": "Scene Generator 출력 — 백엔드별 비주얼 생성 요청",
+  "type": "object",
+  "required": ["scene_id", "backend", "prompt", "aspect_ratio", "duration_sec"],
+  "properties": {
+    "scene_id":     { "type": "integer" },
+    "backend":      { "type": "string", "enum": ["kling", "gpt_image_2", "runway"] },
+    "prompt":       { "type": "string" },
+    "negative_prompt": { "type": "string" },
+    "aspect_ratio": { "type": "string", "enum": ["9:16", "16:9", "1:1"] },
+    "duration_sec": { "type": "number" },
+    "backend_params": {
+      "type": "object",
+      "description": "백엔드별 추가 파라미터",
+      "properties": {
+        "kling": {
+          "type": "object",
+          "properties": {
+            "motion_strength":    { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "camera_motion":      { "type": "string", "enum": ["zoom_in", "zoom_out", "pan_left", "pan_right", "static"] },
+            "character_ref_url":  { "type": "string" },
+            "model_version":      { "type": "string" }
+          }
+        },
+        "gpt_image_2": {
+          "type": "object",
+          "properties": {
+            "size":     { "type": "string", "enum": ["1024x1792", "1792x1024", "1024x1024"] },
+            "quality":  { "type": "string", "enum": ["standard", "hd"] },
+            "style":    { "type": "string", "enum": ["vivid", "natural"] }
+          }
+        },
+        "runway": {
+          "type": "object",
+          "properties": {
+            "seed":           { "type": "integer" },
+            "interpolation":  { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

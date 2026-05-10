@@ -1,0 +1,111 @@
+"""pipeline/llm.py — shared LLM call utilities.
+
+백엔드 우선순위 (harness.yaml llm_backend 설정):
+  anthropic  → ANTHROPIC_API_KEY  (기본값)
+  openai     → OPENAI_API_KEY     (ANTHROPIC_API_KEY 없을 때 자동 fallback)
+
+API 키 없이 실행하려면:
+  /harness-run <프롬프트>  ← Claude Code 스킬 사용
+"""
+
+from __future__ import annotations
+
+import os
+
+_DEFAULT_MODELS = {
+    "anthropic": "claude-sonnet-4-6",
+    "openai":    "gpt-5",
+}
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+
+def call_llm(
+    system: str,
+    user: str,
+    max_tokens: int = 2048,
+    backend: str | None = None,
+    model: str | None = None,
+) -> str:
+    """LLM을 호출한다. backend가 None/'auto'이면 사용 가능한 키로 자동 결정."""
+    resolved = _resolve_backend() if (not backend or backend == "auto") else backend
+
+    if resolved == "anthropic":
+        return _call_anthropic(system, user, max_tokens, model or _DEFAULT_MODELS["anthropic"])
+    if resolved == "openai":
+        return _call_openai(system, user, max_tokens, model or _DEFAULT_MODELS["openai"])
+
+    raise RuntimeError(
+        f"LLM 백엔드 '{resolved}'을 사용할 수 없습니다.\n"
+        "방법 1: .env에 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY 추가\n"
+        "방법 2: Claude Code 스킬 사용 → /harness-run <프롬프트>"
+    )
+
+
+def _resolve_backend() -> str:
+    """키가 있는 백엔드를 자동 선택한다. anthropic 우선."""
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    if os.environ.get("OPENAI_API_KEY"):
+        return "openai"
+    return "none"
+
+
+def _call_anthropic(system: str, user: str, max_tokens: int, model: str) -> str:
+    try:
+        import anthropic
+    except ImportError:
+        raise RuntimeError("pip install anthropic")
+
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    resp = client.messages.create(
+        model=model,
+        max_tokens=max_tokens,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+    )
+    return resp.content[0].text
+
+
+def _call_openai(system: str, user: str, max_tokens: int, model: str) -> str:
+    try:
+        import openai
+    except ImportError:
+        raise RuntimeError("pip install openai")
+
+    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    # gpt-5 이상 및 o-시리즈: max_completion_tokens 사용 + reasoning 버퍼 확보
+    _REASONING_MODELS = ("gpt-5", "o1", "o3", "o4")
+    is_reasoning = any(model.startswith(p) for p in _REASONING_MODELS)
+    token_kwarg  = "max_completion_tokens" if is_reasoning else "max_tokens"
+    token_value  = max(max_tokens * 4, 8192) if is_reasoning else max_tokens
+    resp = client.chat.completions.create(
+        model=model,
+        **{token_kwarg: token_value},
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user},
+        ],
+    )
+    return resp.choices[0].message.content
+
+
+def strip_code_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        text = "\n".join(lines[1:-1]) if lines[-1].startswith("```") else "\n".join(lines[1:])
+    return text
+
+
+def render_messages(template: dict, vars: dict) -> tuple[str, str]:
+    """Render (system, user) strings from template + variable dict."""
+    def _r(text: str) -> str:
+        for k, v in vars.items():
+            text = text.replace(f"{{{{ {k} }}}}", str(v))
+        return text
+    return _r(template["system"]), _r(template["user"])

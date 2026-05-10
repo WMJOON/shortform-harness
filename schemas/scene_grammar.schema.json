@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SceneGrammar",
+  "description": "핵심 중간 표현 — 모든 파이프라인 스테이지가 이 스키마를 통해 소통한다",
+  "type": "object",
+  "required": ["prompt", "narrative", "scenes", "consistency_anchors"],
+  "properties": {
+    "prompt": { "type": "string" },
+    "narrative": {
+      "type": "object",
+      "required": ["concept", "beat_count", "total_duration_sec", "target_persona", "emotional_arc"],
+      "properties": {
+        "concept":            { "type": "string" },
+        "beat_count":         { "type": "integer", "minimum": 3, "maximum": 8 },
+        "total_duration_sec": { "type": "number", "minimum": 15, "maximum": 60 },
+        "target_persona":     { "type": "string" },
+        "emotional_arc":      { "type": "string" }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["id", "scene_type", "duration", "camera", "subtitle_density", "emotion", "voiceover", "visual_prompt", "transition_in", "transition_out", "bgm_cue"],
+        "properties": {
+          "id":               { "type": "integer" },
+          "scene_type":       { "type": "string", "enum": ["hook", "reaction", "empathy", "tip", "product_focus", "cta"] },
+          "duration":         { "type": "number", "minimum": 0.5, "maximum": 15.0 },
+          "camera":           { "type": "string", "enum": ["selfie-close", "selfie-medium", "medium-shot", "medium-close", "product-closeup", "wide"] },
+          "subtitle_density": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+          "caption_style":    { "type": "string", "enum": ["normal", "burst", "kinetic"] },
+          "emotion":          { "type": "string" },
+          "voiceover":        { "type": "string" },
+          "visual_prompt":    { "type": "string" },
+          "zoom":             { "type": "boolean" },
+          "transition_in":    { "type": "string", "enum": ["cut", "fade", "smash-cut"] },
+          "transition_out":   { "type": "string", "enum": ["cut", "fade", "smash-cut"] },
+          "bgm_cue":          { "type": "string", "enum": ["fade_in", "continue", "energy_up", "duck", "fade_out"] }
+        }
+      }
+    },
+    "consistency_anchors": {
+      "type": "object",
+      "required": ["character", "background", "voice", "subtitle"],
+      "properties": {
+        "character": {
+          "type": "object",
+          "required": ["description", "negative_prompt"],
+          "properties": {
+            "reference_image":  { "type": "string" },
+            "description":      { "type": "string" },
+            "negative_prompt":  { "type": "string" }
+          }
+        },
+        "background": {
+          "type": "object",
+          "required": ["style", "description"],
+          "properties": {
+            "style":         { "type": "string" },
+            "description":   { "type": "string" },
+            "color_palette": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "voice": {
+          "type": "object",
+          "required": ["tts_voice_id"],
+          "properties": {
+            "tts_voice_id":   { "type": "string" },
+            "target_energy":  { "type": "string" },
+            "speed_wpm":      { "type": "integer" }
+          }
+        },
+        "subtitle": {
+          "type": "object",
+          "required": ["font", "color", "position"],
+          "properties": {
+            "font":             { "type": "string" },
+            "color":            { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "stroke":           { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+            "position":         { "type": "string", "enum": ["top", "center", "bottom"] },
+            "emphasis_color":   { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+          }
+        }
+      }
+    },
+    "hashtags": { "type": "array", "items": { "type": "string" } }
+  }
+}

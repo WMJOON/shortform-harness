@@ -1,0 +1,114 @@
+id: scene-planner-v1
+stage: scene_planner
+version: "1.0"
+description: "beat structure + style_profile → scene_grammar.json 생성"
+
+input:
+  beat_structure:
+    type: object
+    description: "story_parser 출력"
+  style_profile:
+    type: object
+    description: "레퍼런스 분석 결과"
+  pacing_rules:
+    type: object
+    description: "pacing_rules.json"
+  active_properties:
+    type: object
+    description: "loader.py가 주입 — registry + custom 조합"
+
+output:
+  schema: "schemas/scene_grammar.schema.json"
+  format: json
+
+system: |
+  You are a shortform video scene director specialized in Korean lifestyle content.
+  Convert narrative beats into concrete, self-contained scene grammar.
+
+  Rules:
+  - Each scene is an independent generation unit — visual_prompt must be self-contained
+  - consistency_anchors must appear in EVERY scene's visual_prompt
+  - Hook scene: duration ≤ hook_max_duration from pacing_rules
+  - All scene durations must sum to narrative.total_duration_sec ±0.5s
+  - scene_type must map from beat function:
+      hook → hook
+      empathy → reaction or empathy
+      tip → tip
+      reveal/product_focus → product_focus
+      cta → cta
+  - The output is deterministic assembly instructions, not creative writing
+
+user: |
+  Generate scene grammar from these narrative beats.
+
+  ## Beat Structure
+  {{ beat_structure }}
+
+  ## Style Constraints (must reproduce exactly)
+  - hook_max_duration: {{ pacing_rules.hook_max_duration }}s
+  - avg_scene_length: {{ pacing_rules.avg_scene_length }}s
+  - zoom_probability: {{ pacing_rules.zoom_probability }}
+  - target_persona: {{ style_profile.narrative.target_persona }}
+  - hook.type: {{ style_profile.hook.type }}
+  - ppl_bridge_phrase: {{ style_profile.narrative.ppl_bridge_phrase }}
+
+  ## Consistency Anchors (embed in every visual_prompt)
+  - Character: {{ style_profile.consistency_anchors.character.description }}
+  - Background: {{ style_profile.consistency_anchors.background.description }}
+
+  ## Active Properties
+  {{ active_properties }}
+
+  Return ONLY a JSON object with this EXACT top-level structure:
+  {
+    "prompt": "<user concept>",
+    "narrative": {
+      "concept": "<one-line concept>",
+      "beat_count": <N>,
+      "total_duration_sec": {{ beat_structure.total_duration_sec }},
+      "target_persona": "{{ style_profile.narrative.target_persona }}",
+      "emotional_arc": "<arc>",
+      "ppl_present": true
+    },
+    "scenes": [
+      {
+        "id": 1,
+        "scene_type": "hook",
+        "duration": <≤{{ pacing_rules.hook_max_duration }}>,
+        "camera": "selfie-close",
+        "subtitle_density": "high",
+        "caption_style": "burst",
+        "emotion": "<emotion>",
+        "voiceover": "<Korean voiceover>",
+        "visual_prompt": "<English visual prompt including: {{ style_profile.consistency_anchors.character.description }}, {{ style_profile.consistency_anchors.background.description }}>",
+        "zoom": false,
+        "transition_in": "cut",
+        "transition_out": "smash-cut",
+        "bgm_cue": "fade_in"
+      }
+    ],
+    "consistency_anchors": {
+      "character": { "description": "{{ style_profile.consistency_anchors.character.description }}", "negative_prompt": "ugly, deformed, extra limbs, blurry, low quality, multiple people" },
+      "background": { "style": "modern minimalist Korean apartment interior", "description": "{{ style_profile.consistency_anchors.background.description }}", "color_palette": ["#FAFAFA", "#F5E6D3", "#D4C5B0"] },
+      "voice": { "tts_voice_id": "elevenlabs_kr_female_01", "target_energy": "medium-high", "speed_wpm": 180 },
+      "subtitle": { "font": "Noto Sans KR Bold", "color": "#FFFFFF", "stroke": "#000000", "position": "bottom", "emphasis_color": "#FFE566" }
+    },
+    "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
+  }
+
+  Requirements:
+  - scene durations must sum to exactly {{ beat_structure.total_duration_sec }}s (±0.5s)
+  - scene_type: hook | empathy | tip | product_focus | cta
+  - camera: selfie-close | selfie-medium | medium-shot | product-closeup
+  - voiceover in natural Korean conversational style
+  - bgm_cue: fade_in (scene 1) | continue | energy_up | duck (product scene) | fade_out (last)
+
+eval_cases:
+  - id: "spl_case_001"
+    input_fixture: "eval/fixtures/scene_planner/case_001.json"
+    expected:
+      "scenes[0].scene_type": "hook"
+      "scenes[0].duration": { lte: 2.5 }
+      "scenes[-1].scene_type": "cta"
+      "sum(scenes[*].duration)": { eq: "narrative.total_duration_sec", tolerance: 0.5 }
+      "narrative.target_persona": { not_empty: true }

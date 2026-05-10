@@ -1,0 +1,157 @@
+{
+  "total_duration_sec": 30,
+  "bgm_track": "",
+  "bgm_duck_points": [
+    {
+      "start_sec": 19.5,
+      "end_sec": 25.5,
+      "ratio": 0.3
+    }
+  ],
+  "scenes": [
+    {
+      "id": 1,
+      "start_sec": 0.0,
+      "end_sec": 2.5,
+      "zoom": false,
+      "transition_out": "smash-cut",
+      "bgm": {
+        "cue": "fade_in"
+      },
+      "subtitle_timing": [
+        {
+          "text": "야식이 너무",
+          "start_ms": 0,
+          "end_ms": 833,
+          "emphasis": false
+        },
+        {
+          "text": "먹고 싶은",
+          "start_ms": 833,
+          "end_ms": 1666,
+          "emphasis": false
+        },
+        {
+          "text": "순간?",
+          "start_ms": 1666,
+          "end_ms": 2499,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start_sec": 2.5,
+      "end_sec": 8.5,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "모두가 한 번쯤 겪는",
+          "start_ms": 0,
+          "end_ms": 3000,
+          "emphasis": false
+        },
+        {
+          "text": "다이어트 중 야식의 유혹!",
+          "start_ms": 3000,
+          "end_ms": 6000,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start_sec": 8.5,
+      "end_sec": 19.5,
+      "zoom": true,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "continue"
+      },
+      "subtitle_timing": [
+        {
+          "text": "야식을 피하기 위한 누구나",
+          "start_ms": 0,
+          "end_ms": 3666,
+          "emphasis": false
+        },
+        {
+          "text": "따라할 수 있는 간단한",
+          "start_ms": 3666,
+          "end_ms": 7332,
+          "emphasis": false
+        },
+        {
+          "text": "팁 세 가지를 나눠드릴게요.",
+          "start_ms": 7332,
+          "end_ms": 10998,
+          "emphasis": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "start_sec": 19.5,
+      "end_sec": 25.5,
+      "zoom": false,
+      "transition_out": "cut",
+      "bgm": {
+        "cue": "duck"
+      },
+      "subtitle_timing": [
+        {
+          "text": "여성들의 필수템, 야식 대체",
+          "start_ms": 0,
+          "end_ms": 3000,
+          "emphasis": false
+        },
+        {
+          "text": "식품도 추천해드려요!",
+          "start_ms": 3000,
+          "end_ms": 6000,
+          "emphasis": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "start_sec": 25.5,
+      "end_sec": 30.0,
+      "zoom": false,
+      "transition_out": "fade-out",
+      "bgm": {
+        "cue": "fade_out"
+      },
+      "subtitle_timing": [
+        {
+          "text": "팔로우하거나 좋아요",
+          "start_ms": 0,
+          "end_ms": 1125,
+          "emphasis": false
+        },
+        {
+          "text": "눌러 더",
+          "start_ms": 1125,
+          "end_ms": 2250,
+          "emphasis": false
+        },
+        {
+          "text": "많은 팁을",
+          "start_ms": 2250,
+          "end_ms": 3375,
+          "emphasis": false
+        },
+        {
+          "text": "받아보세요!",
+          "start_ms": 3375,
+          "end_ms": 4500,
+          "emphasis": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "input": {
+    "user_prompt": "피부 트러블 심한 언니들을 위한 진정 스킨케어 루틴",
+    "target_persona": "girly",
+    "total_duration_sec": 30,
+    "emotional_arc_pattern": "curiosity→empathy→solution→desire→action"
+  },
+  "expected_output": {
+    "total_duration_sec": 30,
+    "target_persona": "girly",
+    "emotional_arc": "curiosity→empathy→solution→desire→action",
+    "beats": [
+      {
+        "id": 1,
+        "function": "hook",
+        "duration_ratio": 0.10,
+        "energy": "high",
+        "description": "트러블 피부 고민 공감 질문"
+      },
+      {
+        "id": 2,
+        "function": "empathy",
+        "duration_ratio": 0.20,
+        "energy": "medium",
+        "description": "나도 그랬어 공감 반응"
+      },
+      {
+        "id": 3,
+        "function": "tip",
+        "duration_ratio": 0.35,
+        "energy": "medium",
+        "description": "진정 스킨케어 3단계 공개"
+      },
+      {
+        "id": 4,
+        "function": "product_focus",
+        "duration_ratio": 0.20,
+        "energy": "medium",
+        "description": "핵심 제품 소개"
+      },
+      {
+        "id": 5,
+        "function": "cta",
+        "duration_ratio": 0.15,
+        "energy": "high",
+        "description": "팔로우 + 저장 유도"
+      }
+    ]
+  }
+}

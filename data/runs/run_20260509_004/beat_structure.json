@@ -1,0 +1,42 @@
+{
+  "total_duration_sec": 30,
+  "target_persona": "girly",
+  "emotional_arc": "curiosity→empathy→solution→desire→action",
+  "beats": [
+    {
+      "id": 1,
+      "function": "hook",
+      "duration_ratio": 0.08,
+      "energy": "high",
+      "description": "핑크 타이머 10:00 스타트! 출근 10분 전, 아직 침대? 알람 울림→카운트다운 시작, 하이텐션 🎀⏰"
+    },
+    {
+      "id": 2,
+      "function": "empathy",
+      "duration_ratio": 0.2,
+      "energy": "medium",
+      "description": "현실 직장인 모먼트: 부은 얼굴, 부스스 앞머리, 옷장 앞 멈칫, 슬랙 알림 폭격. 지각 걱정 but girly 무드는 포기 못해 💗"
+    },
+    {
+      "id": 3,
+      "function": "tip",
+      "duration_ratio": 0.37,
+      "energy": "medium",
+      "description": "10분 루틴 솔루션: 1분 미셀라 패드→수분미스트→선크림; 3분 메이크업 쿠션·크림블러셔·체리틴트·브로우; 2분 헤어 앞머리 롤+드라이+진주핀; 2분 스타일링 셋업룩+리본 토트+귀걸이; 2분 푸드·패킹 요거트·텀블러·사원증·카드·립체크."
+    },
+    {
+      "id": 4,
+      "function": "product_focus",
+      "duration_ratio": 0.2,
+      "energy": "medium",
+      "description": "핵심템 3 포커스: 쿠션(촉촉 커버), 선스틱(번들잡는 광), 체리 틴트(생기 업). 손등 스와치→전후 컷, 파우치에 쏙 사이즈 강조 ✨"
+    },
+    {
+      "id": 5,
+      "function": "cta",
+      "duration_ratio": 0.15,
+      "energy": "high",
+      "description": "10분 루틴 지금 저장하고 내일 아침 따라 해봐! 너의 최애 출근템 1개 댓글로 공유하고, 더 짧은 girly 루틴은 팔로우에서 계속 💕"
+    }
+  ]
+}

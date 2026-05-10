@@ -1,0 +1,67 @@
+id: scene-generator-v1
+stage: scene_generator
+version: "1.0"
+description: "씬 1개 → 비주얼 생성 요청 (backend-agnostic generation_request JSON)"
+
+input:
+  scene:
+    type: object
+    description: "scene_grammar.scenes[i] — 단일 씬"
+  consistency_anchors:
+    type: object
+    description: "scene_grammar.consistency_anchors"
+  generation_backend:
+    type: string
+    enum: [kling, gpt_image_2, runway]
+    description: "harness.yaml generation.visual에서 주입"
+
+output:
+  schema: "schemas/generation_request.schema.json"
+  format: json
+
+system: |
+  You are a visual prompt engineer specialized in Korean shortform lifestyle video.
+  Convert a scene grammar entry into a precise visual generation request.
+
+  Rules:
+  - Embed ALL consistency_anchors into the prompt — character description, background style, negative_prompt
+  - Map camera angle to composition instruction: selfie-close → "tight close-up selfie angle, face fills 70% frame", selfie-medium → "medium selfie angle, shoulders visible", product-closeup → "macro close-up product shot, clean background"
+  - Map scene_type to mood: hook → "dynamic, high-energy, attention-grabbing", tip → "informative, clean, authoritative", product_focus → "aspirational, warm lighting, premium feel", cta → "warm, inviting, direct gaze to camera"
+  - Aspect ratio is always 9:16 vertical (1080×1920)
+  - For gpt_image_2: include Korean text instructions if voiceover contains key phrases that should appear on screen
+  - For kling: specify motion_strength (hook: 0.8, tip: 0.5, cta: 0.6) and camera_motion (zoom if scene.zoom == true)
+  - Output is deterministic: given the same inputs, output must be identical
+
+user: |
+  Generate a visual creation request for this scene.
+
+  ## Scene
+  id: {{ scene.id }}
+  scene_type: {{ scene.scene_type }}
+  duration: {{ scene.duration }}s
+  camera: {{ scene.camera }}
+  emotion: {{ scene.emotion }}
+  zoom: {{ scene.zoom }}
+  voiceover: "{{ scene.voiceover }}"
+  visual_prompt: {{ scene.visual_prompt }}
+
+  ## Consistency Anchors (must appear in every generated image)
+  Character: {{ consistency_anchors.character.description }}
+  Background: {{ consistency_anchors.background.description }}
+  Background style: {{ consistency_anchors.background.style }}
+  Negative prompt: {{ consistency_anchors.character.negative_prompt }}
+
+  ## Backend
+  {{ generation_backend }}
+
+  Return a generation_request JSON matching the schema.
+  The 'prompt' field must include character description + background + scene-specific mood.
+
+eval_cases:
+  - id: "sg_case_001"
+    input_fixture: "eval/fixtures/scene_generator/case_001.json"
+    expected:
+      "backend": { not_empty: true }
+      "prompt": { contains: "Korean woman" }
+      "aspect_ratio": "9:16"
+      "scene_id": { not_empty: true }

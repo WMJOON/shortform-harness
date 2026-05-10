@@ -1,0 +1,69 @@
+id: subtitle-generator-v1
+stage: subtitle_generator
+version: "1.0"
+description: "씬 voiceover → subtitle_timing 배열 생성 (timing_manifest 입력값)"
+
+input:
+  scene:
+    type: object
+    description: "scene_grammar.scenes[i] — voiceover, duration, subtitle_density, caption_style 포함"
+  subtitle_config:
+    type: object
+    description: "scene_grammar.consistency_anchors.subtitle"
+  tts_words_per_min:
+    type: number
+    description: "consistency_anchors.voice.speed_wpm — TTS 읽기 속도"
+
+output:
+  schema: "schemas/subtitle_timing.schema.json"
+  format: json
+
+system: |
+  You are a subtitle timing designer for Korean shortform video.
+  Convert a scene's voiceover text into precisely timed subtitle segments.
+
+  Rules:
+  - subtitle_density controls how many words per segment:
+      none → return []
+      low  → 5-8 words per segment, major phrase breaks only
+      medium → 3-5 words per segment
+      high → 1-3 words per segment (word-by-word burst)
+  - caption_style controls animation hint:
+      normal  → standard display
+      burst   → single word or short phrase, rapid succession
+      kinetic → group by emphasis keyword
+  - Total duration of all segments must equal scene.duration (±0.05s)
+  - start_ms / end_ms are relative to scene start (0ms = scene begins)
+  - emphasis=true on segments containing key product names, numbers, or exclamation phrases
+  - Korean particle handling: attach particles (은/는/이/가/을/를) to preceding word, never split
+  - speed_wpm → avg ms per word = 60000 / speed_wpm
+
+user: |
+  Generate subtitle timing for this scene's voiceover.
+
+  ## Scene
+  id: {{ scene.id }}
+  duration: {{ scene.duration }}s
+  voiceover: "{{ scene.voiceover }}"
+  subtitle_density: {{ scene.subtitle_density }}
+  caption_style: {{ scene.caption_style }}
+
+  ## Subtitle Style
+  font: {{ subtitle_config.font }}
+  color: {{ subtitle_config.color }}
+  position: {{ subtitle_config.position }}
+  emphasis_color: {{ subtitle_config.emphasis_color }}
+
+  ## TTS Speed
+  {{ tts_words_per_min }} wpm → {{ 60000 / tts_words_per_min | round }}ms per word
+
+  Return a JSON array of subtitle_timing objects.
+  All start_ms/end_ms must fall within [0, {{ scene.duration * 1000 }}].
+
+eval_cases:
+  - id: "stg_case_001"
+    input_fixture: "eval/fixtures/subtitle_generator/case_001.json"
+    expected:
+      "length": { gte: 1 }
+      "[-1].end_ms": { lte: "scene.duration * 1000 + 50" }
+      "sum(end_ms - start_ms)": { lte: "scene.duration * 1000" }

@@ -1,0 +1,64 @@
+properties:
+
+  character.visual:
+    description: "캐릭터 얼굴·의상·헤어가 씬 전체에서 동일"
+    applies_to: scene_assets
+    measurement:
+      method: image_embedding_similarity
+      model: CLIP
+      compare: each_scene_vs_anchor
+      threshold: 0.85
+    on_fail: flag_regenerate
+    severity: error
+    apo_weight: high
+
+  background.style:
+    description: "배경 장소·조명·색감이 씬 전체에서 일관"
+    applies_to: scene_assets
+    measurement:
+      method: image_embedding_similarity
+      model: CLIP
+      compare: each_scene_vs_anchor
+      threshold: 0.70
+    on_fail: flag_regenerate
+    severity: warning
+    apo_weight: medium
+
+  voice.identity:
+    description: "동일 TTS 보이스 ID가 전체 씬에 사용됨"
+    applies_to: scene_audio
+    measurement:
+      method: voice_id_exact_match
+    on_fail: error
+    severity: error
+    apo_weight: high
+
+  voice.energy_level:
+    description: "씬 간 에너지 레벨 급변 없음 (RMS 기준)"
+    applies_to: scene_audio
+    measurement:
+      method: audio_rms_variance
+      max_variance: 0.15
+    on_fail: warn
+    severity: warning
+    apo_weight: medium
+
+  subtitle.style:
+    description: "자막 폰트·색상·위치·강조 방식이 씬 전체에서 동일"
+    applies_to: scene_subtitle_configs
+    measurement:
+      method: config_exact_match
+      keys: [font, color, position, emphasis_style]
+    on_fail: error
+    severity: error
+    apo_weight: medium
+
+  pacing.rhythm:
+    description: "컷 길이 분포가 pacing_rules 기준에서 벗어나지 않음"
+    applies_to: scene_durations
+    measurement:
+      method: duration_stddev_ratio
+      max_stddev_ratio: 0.30
+    on_fail: warn
+    severity: warning
+    apo_weight: medium

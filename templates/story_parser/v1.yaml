@@ -1,0 +1,77 @@
+id: story-parser-v1
+stage: story_parser
+version: "1.0"
+description: "사용자 프롬프트 → beat structure 추출"
+
+input:
+  user_prompt:
+    type: string
+    description: "영상 스토리·컨셉 (자유 형식)"
+  target_persona:
+    type: string
+    description: "타겟 직접 호칭 (style_profile에서 주입)"
+  total_duration_sec:
+    type: number
+    description: "목표 영상 길이"
+  emotional_arc_pattern:
+    type: string
+    description: "style_profile.narrative.emotional_arc"
+
+output:
+  schema: "schemas/beat_structure.schema.json"
+  format: json
+
+system: |
+  You are a shortform video narrative designer specialized in Korean lifestyle content.
+  Decompose the user's concept into 4-6 emotional beats that drive viewer attention.
+  Each beat must have a clear emotional function and contribute to the pacing arc.
+
+  Rules:
+  - First beat MUST be "hook" with energy "high"
+  - Last beat MUST be "cta"
+  - duration_ratio values must sum to exactly 1.0
+  - Keep beats tight — shortform attention span is short
+
+user: |
+  Create a beat structure for this shortform video concept.
+
+  ## User Concept
+  {{ user_prompt }}
+
+  ## Target Persona
+  {{ target_persona }}
+
+  ## Total Duration
+  {{ total_duration_sec }}s
+
+  ## Emotional Arc Pattern (reference style)
+  {{ emotional_arc_pattern }}
+
+  Return ONLY a JSON object with this EXACT structure (no other keys):
+  {
+    "total_duration_sec": {{ total_duration_sec }},
+    "target_persona": "{{ target_persona }}",
+    "emotional_arc": "{{ emotional_arc_pattern }}",
+    "beats": [
+      {"id": 1, "function": "hook",          "duration_ratio": 0.08, "energy": "high",   "description": "..."},
+      {"id": 2, "function": "empathy",        "duration_ratio": 0.20, "energy": "medium", "description": "..."},
+      {"id": 3, "function": "tip",            "duration_ratio": 0.37, "energy": "medium", "description": "..."},
+      {"id": 4, "function": "product_focus",  "duration_ratio": 0.20, "energy": "medium", "description": "..."},
+      {"id": 5, "function": "cta",            "duration_ratio": 0.15, "energy": "high",   "description": "..."}
+    ]
+  }
+
+  Rules:
+  - "function" must be one of: hook, empathy, tip, reveal, product_focus, cta
+  - duration_ratio values must sum to exactly 1.0
+  - first beat function = "hook", last beat function = "cta"
+  - Write description in Korean
+
+eval_cases:
+  - id: "sp_case_001"
+    input_fixture: "eval/fixtures/story_parser/case_001.json"
+    expected:
+      "beats[0].function": "hook"
+      "beats[0].energy": "high"
+      "beats[-1].function": "cta"
+      "sum(beats[*].duration_ratio)": { eq: 1.0, tolerance: 0.01 }
